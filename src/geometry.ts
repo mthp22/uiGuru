@@ -39,7 +39,7 @@ export function resizeFrame(
   delta: { x: number; y: number },
   canvas: { width: number; height: number },
 ): CanvasElementFrame {
-  let next = { ...frame };
+  const next = { ...frame };
 
   if (handle.includes('e')) next.width = frame.width + delta.x;
   if (handle.includes('s')) next.height = frame.height + delta.y;
