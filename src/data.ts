@@ -1,4 +1,4 @@
-import type { Design, DesignContent, DesignStyle, Framework, PagePreset } from './types';
+import type { CanvasElement, CanvasElementContent, CanvasElementStyle, CanvasProject, ElementKind, Framework } from './types';
 
 export const frameworks: { id: Framework; label: string }[] = [
   { id: 'react', label: 'React' },
@@ -10,122 +10,158 @@ export const frameworks: { id: Framework; label: string }[] = [
   { id: 'html-css', label: 'HTML/CSS' },
 ];
 
-export const pagePresets: { id: PagePreset; label: string; description: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', description: 'Metrics, status cards, and activity blocks.' },
-  { id: 'product-grid', label: 'Product Grid', description: 'Commerce cards with actions and badges.' },
-  { id: 'article', label: 'Article Page', description: 'Editorial layout with supporting sections.' },
-  { id: 'profile', label: 'Profile Page', description: 'Avatar-led identity and account highlights.' },
-  { id: 'pricing', label: 'Pricing', description: 'Plans, benefits, and conversion actions.' },
-  { id: 'features', label: 'Feature Grid', description: 'Product capabilities in scannable blocks.' },
-  { id: 'admin-list', label: 'Admin List', description: 'Operational rows and compact summaries.' },
+export const elementPalette: { kind: ElementKind; label: string; description: string }[] = [
+  { kind: 'section', label: 'Section', description: 'A surface for grouping content.' },
+  { kind: 'card', label: 'Card', description: 'Image, heading, copy, tags, and actions.' },
+  { kind: 'heading', label: 'Heading', description: 'Configurable title text.' },
+  { kind: 'text', label: 'Text', description: 'Paragraph or supporting copy.' },
+  { kind: 'image', label: 'Image', description: 'Remote image block with object fit.' },
+  { kind: 'button', label: 'Button', description: 'Primary or secondary action.' },
+  { kind: 'badge-list', label: 'Badges', description: 'Inline labels and status chips.' },
 ];
 
-export const defaultStyle: DesignStyle = {
+export const presetProjects = [
+  { id: 'dashboard', label: 'Dashboard Cards' },
+  { id: 'product', label: 'Product Showcase' },
+  { id: 'profile', label: 'Profile Header' },
+] as const;
+
+const baseStyle: CanvasElementStyle = {
+  background: '#ffffff',
+  color: '#172033',
+  borderColor: '#d7dee8',
   accent: '#2563eb',
-  surface: '#ffffff',
-  text: '#172033',
-  muted: '#64748b',
-  spacing: 18,
+  fontFamily: 'Inter',
+  fontSize: 16,
+  fontWeight: 500,
+  textAlign: 'left',
   radius: 8,
-  shadow: 12,
-  fontScale: 1,
-  showImage: true,
-  showBadges: true,
-  showActions: true,
-  cardLayout: 'vertical',
-  pageLayout: 'grid',
+  padding: 18,
+  shadow: 10,
+  opacity: 100,
 };
 
-export const presetContent: Record<PagePreset, DesignContent> = {
-  dashboard: {
-    title: 'Revenue Command Center',
-    subtitle: 'Operations dashboard',
-    body: 'Track high-value accounts, weekly movement, and active workflow health from one focused surface.',
-    image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80',
-    meta: 'Updated 4 min ago',
-    badges: ['Live', '+18%', 'Ops'],
-    primaryAction: 'Open dashboard',
-    secondaryAction: 'Export report',
-    items: ['Pipeline velocity', 'Active accounts', 'Risk alerts', 'Team throughput'],
+const baseContent: CanvasElementContent = {
+  title: 'Untitled block',
+  subtitle: 'Supporting label',
+  body: 'Add your content here. Select this block to edit copy, images, type, color, spacing, and layout.',
+  imageUrl: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80',
+  altText: '',
+  actionLabel: 'Action',
+  items: ['Fast', 'Configurable', 'Exportable'],
+};
+
+const defaultsByKind: Record<ElementKind, Partial<CanvasElement>> = {
+  section: {
+    name: 'Section',
+    frame: { x: 96, y: 80, width: 720, height: 280 },
+    style: { ...baseStyle, background: '#f8fafc', padding: 24, shadow: 0 },
+    content: { ...baseContent, title: 'New Section', body: 'Use sections to compose landing pages, dashboards, and app screens.' },
   },
-  'product-grid': {
-    title: 'Studio Monitor Arm',
-    subtitle: 'Workspace essentials',
-    body: 'A clean product card for comparing items, price points, and compact purchase actions.',
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80',
-    meta: '$129.00',
-    badges: ['New', 'In stock', 'Ships today'],
-    primaryAction: 'Add to cart',
-    secondaryAction: 'Details',
-    items: ['Aluminum frame', 'VESA ready', 'Cable channel', 'Matte finish'],
+  card: {
+    name: 'Card',
+    frame: { x: 120, y: 100, width: 340, height: 420 },
+    content: { ...baseContent, title: 'Framework-ready card', subtitle: 'Card block', actionLabel: 'Export UI' },
   },
-  article: {
-    title: 'Design Systems That Stay Useful',
-    subtitle: 'Editorial layout',
-    body: 'A measured article module with space for authorship, summary, and onward reading.',
-    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=80',
-    meta: '8 min read',
-    badges: ['Design', 'Systems', 'Guide'],
-    primaryAction: 'Read article',
-    secondaryAction: 'Save',
-    items: ['Token hygiene', 'Component contracts', 'Release rhythm', 'Documentation habits'],
+  heading: {
+    name: 'Heading',
+    frame: { x: 120, y: 80, width: 520, height: 90 },
+    style: { ...baseStyle, background: 'transparent', borderColor: 'transparent', fontSize: 42, fontWeight: 800, shadow: 0, padding: 4 },
+    content: { ...baseContent, title: 'Design your layout', body: '' },
   },
-  profile: {
-    title: 'Maya Patel',
-    subtitle: 'Senior product designer',
-    body: 'Profile blocks that surface role, strengths, recent work, and next actions without clutter.',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
-    meta: 'Available for review',
-    badges: ['Lead', 'Research', 'UI'],
-    primaryAction: 'Message',
-    secondaryAction: 'View work',
-    items: ['Checkout redesign', 'Mobile IA', 'Design QA', 'Mentorship'],
+  text: {
+    name: 'Text',
+    frame: { x: 120, y: 190, width: 460, height: 120 },
+    style: { ...baseStyle, background: 'transparent', borderColor: 'transparent', color: '#526174', shadow: 0, padding: 4 },
+    content: { ...baseContent, title: '', body: 'Write body copy, descriptions, notes, or product messaging directly in the inspector.' },
   },
-  pricing: {
-    title: 'Pro Workspace',
-    subtitle: 'For growing teams',
-    body: 'A pricing card with plan value, supporting proof points, and clear upgrade actions.',
-    image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80',
-    meta: '$24 / seat',
-    badges: ['Popular', 'SSO', 'Priority'],
-    primaryAction: 'Start trial',
-    secondaryAction: 'Compare',
-    items: ['Unlimited projects', 'Shared presets', 'Export history', 'Team libraries'],
+  image: {
+    name: 'Image',
+    frame: { x: 120, y: 120, width: 360, height: 230 },
+    style: { ...baseStyle, padding: 0, shadow: 8 },
+    content: { ...baseContent, title: '', body: '', altText: 'Layout image' },
   },
-  features: {
-    title: 'Launch Faster With Reusable Blocks',
-    subtitle: 'Feature grid',
-    body: 'A product feature block for communicating practical capabilities and benefits.',
-    image: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80',
-    meta: 'v1 toolkit',
-    badges: ['Fast', 'Composable', 'Exportable'],
-    primaryAction: 'Use preset',
-    secondaryAction: 'Preview',
-    items: ['Live preview', 'Framework export', 'Saved designs', 'Page templates'],
+  button: {
+    name: 'Button',
+    frame: { x: 120, y: 340, width: 160, height: 52 },
+    style: { ...baseStyle, background: '#2563eb', color: '#ffffff', borderColor: '#2563eb', fontWeight: 800, shadow: 6, padding: 12 },
+    content: { ...baseContent, actionLabel: 'Get started', title: '', body: '' },
   },
-  'admin-list': {
-    title: 'Review Queue',
-    subtitle: 'Admin workflow',
-    body: 'Compact operational cards for queues, approvals, owner state, and progress.',
-    image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',
-    meta: '23 open',
-    badges: ['Admin', 'Queue', 'SLA'],
-    primaryAction: 'Review',
-    secondaryAction: 'Assign',
-    items: ['Pending approvals', 'Assigned owners', 'Escalations', 'Completed today'],
+  'badge-list': {
+    name: 'Badges',
+    frame: { x: 120, y: 300, width: 320, height: 70 },
+    style: { ...baseStyle, background: 'transparent', borderColor: 'transparent', shadow: 0, padding: 4 },
+    content: { ...baseContent, title: '', body: '', items: ['Beta', 'Responsive', 'Live export'] },
   },
 };
 
-export function createDesign(overrides: Partial<Design> = {}): Design {
-  const preset = overrides.preset ?? 'dashboard';
+export function createElement(kind: ElementKind, position?: { x: number; y: number }): CanvasElement {
+  const defaults = defaultsByKind[kind];
+  const frame = defaults.frame ?? { x: 120, y: 120, width: 260, height: 160 };
+  const nextFrame = { ...frame, ...position };
   return {
     id: crypto.randomUUID(),
-    name: overrides.name ?? 'Untitled design',
-    mode: overrides.mode ?? 'card',
-    preset,
-    framework: overrides.framework ?? 'react',
-    content: { ...presetContent[preset], ...overrides.content },
-    style: { ...defaultStyle, ...overrides.style },
+    kind,
+    name: defaults.name ?? kind,
+    frame: nextFrame,
+    defaultFrame: { ...nextFrame },
+    style: { ...baseStyle, ...defaults.style },
+    content: { ...baseContent, ...defaults.content },
+    locked: false,
+  };
+}
+
+export function createEmptyProject(): CanvasProject {
+  return {
+    id: crypto.randomUUID(),
+    name: 'Untitled playground',
+    framework: 'react',
+    layoutMode: 'free',
+    canvas: {
+      width: 1180,
+      height: 760,
+      background: '#f8fafc',
+    },
+    elements: [],
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function createPresetProject(preset: (typeof presetProjects)[number]['id']): CanvasProject {
+  const project = createEmptyProject();
+  if (preset === 'dashboard') {
+    project.name = 'Dashboard card grid';
+    project.elements = [
+      createElement('heading', { x: 80, y: 64 }),
+      createElement('text', { x: 84, y: 150 }),
+      createElement('card', { x: 84, y: 270 }),
+      createElement('card', { x: 460, y: 270 }),
+      createElement('card', { x: 836, y: 270 }),
+    ].map((element, index) => ({
+      ...element,
+      content: { ...element.content, title: index > 1 ? ['Conversion', 'Pipeline', 'Retention'][index - 2] ?? element.content.title : element.content.title },
+    }));
+  }
+  if (preset === 'product') {
+    project.name = 'Product showcase';
+    project.elements = [
+      createElement('image', { x: 92, y: 90 }),
+      createElement('heading', { x: 520, y: 100 }),
+      createElement('text', { x: 524, y: 210 }),
+      createElement('badge-list', { x: 524, y: 330 }),
+      createElement('button', { x: 524, y: 420 }),
+    ];
+  }
+  if (preset === 'profile') {
+    project.name = 'Profile header';
+    project.elements = [
+      createElement('section', { x: 92, y: 88 }),
+      createElement('image', { x: 132, y: 130 }),
+      createElement('heading', { x: 540, y: 130 }),
+      createElement('text', { x: 544, y: 232 }),
+      createElement('button', { x: 544, y: 360 }),
+    ];
+  }
+  project.updatedAt = new Date().toISOString();
+  return project;
 }
