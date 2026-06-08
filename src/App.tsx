@@ -1,64 +1,48 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  Clipboard,
-  Download,
-  Eye,
-  Grid2X2,
-  LayoutDashboard,
-  Monitor,
-  PanelLeft,
-  PanelRight,
-  Save,
-  Smartphone,
-  Tablet,
-  WandSparkles,
-} from 'lucide-react';
-import { createDesign, frameworks, pagePresets, presetContent } from './data';
-import { exportDesign } from './exporters';
-import type { Design, PagePreset, PreviewSize } from './types';
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { Clipboard, Copy, Download, Eye, Layers, Lock, Monitor, MousePointer2, RotateCcw, Save, Smartphone, Tablet, Trash2, Unlock } from 'lucide-react';
+import {
+  bringElementForward,
+  duplicateElement,
+  normalizeProject,
+  removeElement,
+  resetElementSize,
+  sendElementBackward,
+  toggleElementLock,
+  updateElement,
+} from './canvasCommands';
+import { CanvasBlock, ContextMenu, type ContextMenuAction } from './CanvasElements';
+import { iconByKind } from './canvasIcons';
+import { createElement, createEmptyProject, createPresetProject, elementPalette, frameworks, presetProjects } from './data';
+import { exportProject } from './exporters';
+import { marqueeStyle, useCanvasInteractions } from './useCanvasInteractions';
+import type { CanvasElement, CanvasProject, ElementKind, PreviewSize } from './types';
 
-const storageKey = 'uiguru:saved-designs';
+const storageKey = 'uiguru:canvas-projects';
+const dragMime = 'application/uiguru-element-kind';
 
-const previewWidths: Record<PreviewSize, string> = {
-  desktop: '100%',
-  tablet: '720px',
-  mobile: '390px',
+const previewScales: Record<PreviewSize, number> = {
+  desktop: 0.78,
+  tablet: 0.58,
+  mobile: 0.34,
 };
 
-function readSavedDesigns(): Design[] {
+function readProjects(): CanvasProject[] {
   try {
     const stored = localStorage.getItem(storageKey);
-    return stored ? (JSON.parse(stored) as Design[]) : [];
+    return stored ? (JSON.parse(stored) as CanvasProject[]).map(normalizeProject) : [];
   } catch {
     return [];
   }
 }
 
-function AppButton({
-  children,
-  onClick,
-  active,
-  title,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  active?: boolean;
-  title?: string;
-}) {
-  return (
-    <button className={`icon-button ${active ? 'is-active' : ''}`} onClick={onClick} title={title} type="button">
-      {children}
-    </button>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="field">
       <span>{label}</span>
@@ -67,68 +51,81 @@ function Field({
   );
 }
 
-function Toggle({
+function ToolButton({
+  children,
   label,
-  checked,
-  onChange,
+  active,
+  onClick,
 }: {
+  children: ReactNode;
   label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  active?: boolean;
+  onClick: () => void;
 }) {
   return (
-    <label className="toggle">
-      <input checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" />
-      <span>{label}</span>
-    </label>
+    <button className={`tool-button ${active ? 'active' : ''}`} onClick={onClick} title={label} type="button">
+      {children}
+    </button>
   );
 }
 
 export function App() {
-  const [design, setDesign] = useState(() => createDesign({ name: 'Revenue dashboard card' }));
-  const [saved, setSaved] = useState<Design[]>(readSavedDesigns);
+  const [project, setProject] = useState<CanvasProject>(createEmptyProject);
+  const [savedProjects, setSavedProjects] = useState<CanvasProject[]>(readProjects);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewSize, setPreviewSize] = useState<PreviewSize>('desktop');
-  const exportedCode = useMemo(() => exportDesign(design, design.framework), [design]);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const exportedCode = useMemo(() => exportProject(project, project.framework), [project]);
+  const selected = project.elements.find((element) => element.id === selectedId) ?? null;
+  const previewScale = previewScales[previewSize];
+  const interactions = useCanvasInteractions({
+    canvasRef,
+    project,
+    scale: previewScale,
+    selectedId,
+    setProject,
+    setSelectedId,
+  });
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(saved));
-  }, [saved]);
+    localStorage.setItem(storageKey, JSON.stringify(savedProjects));
+  }, [savedProjects]);
 
-  const updateDesign = (patch: Partial<Design>) => {
-    setDesign((current) => ({ ...current, ...patch, updatedAt: new Date().toISOString() }));
+  const commit = (recipe: (current: CanvasProject) => CanvasProject) => {
+    setProject((current) => ({ ...recipe(current), updatedAt: new Date().toISOString() }));
   };
 
-  const updateContent = (key: keyof Design['content'], value: string | string[]) => {
-    setDesign((current) => ({
-      ...current,
-      content: { ...current.content, [key]: value },
-      updatedAt: new Date().toISOString(),
-    }));
+  const updateProject = (patch: Partial<CanvasProject>) => {
+    commit((current) => ({ ...current, ...patch }));
   };
 
-  const updateStyle = (key: keyof Design['style'], value: string | number | boolean) => {
-    setDesign((current) => ({
-      ...current,
-      style: { ...current.style, [key]: value },
-      updatedAt: new Date().toISOString(),
-    }));
+  const updateSelected = (recipe: (element: CanvasElement) => CanvasElement) => {
+    if (!selectedId) return;
+    setProject((current) => updateElement(current, selectedId, recipe));
   };
 
-  const choosePreset = (preset: PagePreset) => {
-    setDesign((current) => ({
-      ...current,
-      preset,
-      name: pagePresets.find((item) => item.id === preset)?.label ?? current.name,
-      content: { ...presetContent[preset] },
-      updatedAt: new Date().toISOString(),
-    }));
+  const addElement = (kind: ElementKind, position?: { x: number; y: number }) => {
+    const element = createElement(kind, position);
+    commit((current) => ({ ...current, elements: [...current.elements, element] }));
+    setSelectedId(element.id);
   };
 
-  const saveDesign = () => {
-    setSaved((current) => {
-      const nextDesign = { ...design, id: design.id || crypto.randomUUID(), updatedAt: new Date().toISOString() };
-      const existing = current.filter((item) => item.id !== nextDesign.id);
-      return [nextDesign, ...existing].slice(0, 12);
+  const dropElement = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const kind = event.dataTransfer.getData(dragMime) as ElementKind;
+    if (!kind || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scale = previewScales[previewSize];
+    addElement(kind, {
+      x: Math.max(0, Math.round((event.clientX - rect.left) / scale)),
+      y: Math.max(0, Math.round((event.clientY - rect.top) / scale)),
+    });
+  };
+
+  const saveProject = () => {
+    setSavedProjects((current) => {
+      const next = { ...project, updatedAt: new Date().toISOString() };
+      return [next, ...current.filter((item) => item.id !== project.id)].slice(0, 12);
     });
   };
 
@@ -137,298 +134,412 @@ export function App() {
   };
 
   const downloadCode = () => {
-    const extension = design.framework === 'javafx' ? 'java' : design.framework === 'html-css' ? 'html' : 'txt';
+    const extension = project.framework === 'javafx' ? 'java' : project.framework === 'html-css' ? 'html' : 'txt';
     const blob = new Blob([exportedCode], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `uiguru-${design.mode}-${design.framework}.${extension}`;
+    anchor.download = `uiguru-canvas-${project.framework}.${extension}`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
 
+  const duplicateSelected = () => {
+    if (!selectedId) return;
+    setProject((current) => {
+      const result = duplicateElement(current, selectedId);
+      if (result.duplicatedId) setSelectedId(result.duplicatedId);
+      return result.project;
+    });
+  };
+
+  const removeSelected = () => {
+    if (!selectedId) return;
+    setProject((current) => removeElement(current, selectedId));
+    setSelectedId(null);
+    interactions.closeContextMenu();
+  };
+
+  const resetSelectedSize = () => {
+    if (!selectedId) return;
+    setProject((current) => resetElementSize(current, selectedId));
+  };
+
+  const runContextAction = (action: ContextMenuAction) => {
+    const elementId = interactions.contextMenu?.elementId;
+    if (!elementId) return;
+    if (action === 'remove') {
+      setProject((current) => removeElement(current, elementId));
+      setSelectedId(null);
+    }
+    if (action === 'duplicate') {
+      setProject((current) => {
+        const result = duplicateElement(current, elementId);
+        if (result.duplicatedId) setSelectedId(result.duplicatedId);
+        return result.project;
+      });
+    }
+    if (action === 'reset-size') setProject((current) => resetElementSize(current, elementId));
+    if (action === 'toggle-lock') setProject((current) => toggleElementLock(current, elementId));
+    if (action === 'bring-forward') setProject((current) => bringElementForward(current, elementId));
+    if (action === 'send-backward') setProject((current) => sendElementBackward(current, elementId));
+    interactions.closeContextMenu();
+  };
+
   return (
     <main className="app-shell">
-      <aside className="workspace-panel controls-panel">
+      <aside className="workspace-panel palette-panel">
         <div className="brand-row">
           <div>
             <strong>uiGuru</strong>
-            <span>Framework UI playground</span>
+            <span>Drag blocks onto the canvas</span>
           </div>
-          <WandSparkles size={20} />
-        </div>
-
-        <div className="segmented">
-          <button className={design.mode === 'card' ? 'active' : ''} onClick={() => updateDesign({ mode: 'card' })} type="button">
-            <PanelLeft size={16} /> Card
-          </button>
-          <button className={design.mode === 'page' ? 'active' : ''} onClick={() => updateDesign({ mode: 'page' })} type="button">
-            <LayoutDashboard size={16} /> Page
-          </button>
         </div>
 
         <section>
-          <h2>Presets</h2>
-          <div className="preset-list">
-            {pagePresets.map((preset) => (
+          <h2>Canvas</h2>
+          <Field label="Project name">
+            <input value={project.name} onChange={(event) => updateProject({ name: event.target.value })} />
+          </Field>
+          <div className="split-fields">
+            <Field label="Width">
+              <input min="320" type="number" value={project.canvas.width} onChange={(event) => updateProject({ canvas: { ...project.canvas, width: Number(event.target.value) } })} />
+            </Field>
+            <Field label="Height">
+              <input min="320" type="number" value={project.canvas.height} onChange={(event) => updateProject({ canvas: { ...project.canvas, height: Number(event.target.value) } })} />
+            </Field>
+          </div>
+          <Field label="Background">
+            <input type="color" value={project.canvas.background} onChange={(event) => updateProject({ canvas: { ...project.canvas, background: event.target.value } })} />
+          </Field>
+          <button className="wide-action" onClick={() => { setProject(createEmptyProject()); setSelectedId(null); }} type="button">
+            Empty playground
+          </button>
+        </section>
+
+        <section>
+          <h2>Blocks</h2>
+          <div className="palette-list">
+            {elementPalette.map((item) => (
               <button
-                className={design.preset === preset.id ? 'preset active' : 'preset'}
-                key={preset.id}
-                onClick={() => choosePreset(preset.id)}
+                draggable
+                key={item.kind}
+                onClick={() => addElement(item.kind)}
+                onDragStart={(event) => event.dataTransfer.setData(dragMime, item.kind)}
                 type="button"
               >
-                <strong>{preset.label}</strong>
-                <span>{preset.description}</span>
+                {iconByKind[item.kind]}
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </span>
               </button>
             ))}
           </div>
         </section>
 
         <section>
-          <h2>Content</h2>
-          <Field label="Name">
-            <input value={design.name} onChange={(event) => updateDesign({ name: event.target.value })} />
-          </Field>
-          <Field label="Title">
-            <input value={design.content.title} onChange={(event) => updateContent('title', event.target.value)} />
-          </Field>
-          <Field label="Subtitle">
-            <input value={design.content.subtitle} onChange={(event) => updateContent('subtitle', event.target.value)} />
-          </Field>
-          <Field label="Body">
-            <textarea value={design.content.body} onChange={(event) => updateContent('body', event.target.value)} rows={4} />
-          </Field>
-          <Field label="Meta">
-            <input value={design.content.meta} onChange={(event) => updateContent('meta', event.target.value)} />
-          </Field>
-          <Field label="Image URL">
-            <input value={design.content.image} onChange={(event) => updateContent('image', event.target.value)} />
-          </Field>
-          <Field label="Badges">
-            <input value={design.content.badges.join(', ')} onChange={(event) => updateContent('badges', event.target.value.split(',').map((item) => item.trim()).filter(Boolean))} />
-          </Field>
-          <Field label="List Items">
-            <textarea value={design.content.items.join('\n')} onChange={(event) => updateContent('items', event.target.value.split('\n').filter(Boolean))} rows={4} />
-          </Field>
+          <h2>Presets</h2>
+          <div className="preset-list">
+            {presetProjects.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  const next = createPresetProject(preset.id);
+                  setProject(next);
+                  setSelectedId(next.elements[0]?.id ?? null);
+                }}
+                type="button"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section>
-          <h2>Style</h2>
-          <div className="swatch-row">
-            {['#2563eb', '#0f766e', '#b45309', '#be123c', '#4338ca'].map((color) => (
-              <button
-                aria-label={`Use ${color}`}
-                className={design.style.accent === color ? 'swatch active' : 'swatch'}
-                key={color}
-                onClick={() => updateStyle('accent', color)}
-                style={{ background: color }}
-                type="button"
-              />
+          <h2>Layers</h2>
+          <div className="layer-list">
+            {project.elements.length === 0 ? <p>No layers yet.</p> : null}
+            {project.elements.map((element) => (
+              <button className={selectedId === element.id ? 'active' : ''} key={element.id} onClick={() => setSelectedId(element.id)} type="button">
+                {iconByKind[element.kind]}
+                <span>{element.name}</span>
+              </button>
             ))}
           </div>
-          <Field label="Accent">
-            <input type="color" value={design.style.accent} onChange={(event) => updateStyle('accent', event.target.value)} />
-          </Field>
-          <Field label={`Spacing ${design.style.spacing}px`}>
-            <input min="10" max="34" type="range" value={design.style.spacing} onChange={(event) => updateStyle('spacing', Number(event.target.value))} />
-          </Field>
-          <Field label={`Radius ${design.style.radius}px`}>
-            <input min="0" max="24" type="range" value={design.style.radius} onChange={(event) => updateStyle('radius', Number(event.target.value))} />
-          </Field>
-          <Field label={`Shadow ${design.style.shadow}`}>
-            <input min="0" max="28" type="range" value={design.style.shadow} onChange={(event) => updateStyle('shadow', Number(event.target.value))} />
-          </Field>
-          <Field label={`Type ${design.style.fontScale.toFixed(1)}x`}>
-            <input min="0.8" max="1.3" step="0.1" type="range" value={design.style.fontScale} onChange={(event) => updateStyle('fontScale', Number(event.target.value))} />
-          </Field>
-          <div className="toggle-grid">
-            <Toggle checked={design.style.showImage} label="Image" onChange={(checked) => updateStyle('showImage', checked)} />
-            <Toggle checked={design.style.showBadges} label="Badges" onChange={(checked) => updateStyle('showBadges', checked)} />
-            <Toggle checked={design.style.showActions} label="Actions" onChange={(checked) => updateStyle('showActions', checked)} />
-          </div>
-          <Field label="Card layout">
-            <select value={design.style.cardLayout} onChange={(event) => updateStyle('cardLayout', event.target.value)}>
-              <option value="vertical">Vertical</option>
-              <option value="horizontal">Horizontal</option>
-              <option value="compact">Compact</option>
-            </select>
-          </Field>
-          <Field label="Page layout">
-            <select value={design.style.pageLayout} onChange={(event) => updateStyle('pageLayout', event.target.value)}>
-              <option value="grid">Grid</option>
-              <option value="sidebar">Sidebar</option>
-              <option value="stacked">Stacked</option>
-            </select>
-          </Field>
         </section>
       </aside>
 
-      <section className="preview-stage">
+      <section className="canvas-stage">
         <header className="stage-toolbar">
           <div>
-            <h1>{design.name}</h1>
-            <span>{design.mode === 'card' ? 'Card Builder' : 'Page Layout Generator'}</span>
+            <h1>{project.name}</h1>
+            <span>{project.elements.length === 0 ? 'Empty playground' : `${project.elements.length} configurable blocks`}</span>
           </div>
           <div className="toolbar-actions">
-            <AppButton active={previewSize === 'desktop'} onClick={() => setPreviewSize('desktop')} title="Desktop preview">
+            <ToolButton active={previewSize === 'desktop'} label="Desktop preview" onClick={() => setPreviewSize('desktop')}>
               <Monitor size={18} />
-            </AppButton>
-            <AppButton active={previewSize === 'tablet'} onClick={() => setPreviewSize('tablet')} title="Tablet preview">
+            </ToolButton>
+            <ToolButton active={previewSize === 'tablet'} label="Tablet preview" onClick={() => setPreviewSize('tablet')}>
               <Tablet size={18} />
-            </AppButton>
-            <AppButton active={previewSize === 'mobile'} onClick={() => setPreviewSize('mobile')} title="Mobile preview">
+            </ToolButton>
+            <ToolButton active={previewSize === 'mobile'} label="Mobile preview" onClick={() => setPreviewSize('mobile')}>
               <Smartphone size={18} />
-            </AppButton>
-            <AppButton onClick={saveDesign} title="Save design">
+            </ToolButton>
+            <ToolButton label="Save project" onClick={saveProject}>
               <Save size={18} />
-            </AppButton>
+            </ToolButton>
+            <ToolButton label="Duplicate" onClick={duplicateSelected}>
+              <Copy size={18} />
+            </ToolButton>
+            <ToolButton label="Reset size" onClick={resetSelectedSize}>
+              <RotateCcw size={18} />
+            </ToolButton>
+            <ToolButton label="Remove" onClick={removeSelected}>
+              <Trash2 size={18} />
+            </ToolButton>
           </div>
         </header>
 
-        <div className="preview-wrap">
-          <div className="preview-viewport" style={{ maxWidth: previewWidths[previewSize] }}>
-            {design.mode === 'card' ? <CardPreview design={design} /> : <PagePreview design={design} />}
+        <div className="canvas-scroll">
+          <div
+            className="canvas-scale"
+            style={{ width: project.canvas.width * previewScale, height: project.canvas.height * previewScale }}
+          >
+            <div
+              className="design-canvas"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={dropElement}
+              onClick={() => {
+                setSelectedId(null);
+                interactions.closeContextMenu();
+              }}
+              onContextMenu={(event) => event.preventDefault()}
+              onPointerDown={interactions.startMarquee}
+              ref={canvasRef}
+              style={
+                {
+                  width: project.canvas.width,
+                  height: project.canvas.height,
+                  background: project.canvas.background,
+                  transform: `scale(${previewScale})`,
+                } as CSSProperties
+              }
+            >
+              {project.elements.length === 0 ? (
+                <div className="empty-canvas">
+                  <Layers size={28} />
+                  <strong>Start with a blank canvas</strong>
+                  <span>Drag blocks from the left panel, then select them to edit content, images, fonts, spacing, and position.</span>
+                </div>
+              ) : null}
+              {project.elements.map((element) => (
+                <CanvasBlock
+                  element={element}
+                  key={element.id}
+                  onContextMenu={(event) => interactions.openContextMenu(element.id, event)}
+                  onPointerDown={(event) => interactions.startMove(element.id, event)}
+                  onResizeStart={(handle, event) => interactions.startResize(element.id, handle, event)}
+                  selected={selectedId === element.id}
+                />
+              ))}
+              {interactions.marquee ? <div className="selection-marquee" style={marqueeStyle(interactions.marquee)} /> : null}
+            </div>
           </div>
         </div>
       </section>
 
-      <aside className="workspace-panel export-panel">
-        <div className="export-header">
-          <div>
-            <h2>Export</h2>
-            <span>{frameworks.find((item) => item.id === design.framework)?.label}</span>
+      <aside className="workspace-panel inspector-panel">
+        {selected ? (
+          <Inspector element={selected} updateSelected={updateSelected} />
+        ) : (
+          <div className="empty-inspector">
+            <MousePointer2 size={24} />
+            <h2>Select a block</h2>
+            <p>Use the inspector to configure content, images, heading sizes, fonts, colors, spacing, and placement.</p>
           </div>
-          <PanelRight size={20} />
-        </div>
+        )}
 
-        <div className="framework-grid">
-          {frameworks.map((framework) => (
-            <button
-              className={design.framework === framework.id ? 'active' : ''}
-              key={framework.id}
-              onClick={() => updateDesign({ framework: framework.id })}
-              type="button"
-            >
-              {framework.label}
+        <section>
+          <h2>Export</h2>
+          <div className="framework-grid">
+            {frameworks.map((framework) => (
+              <button
+                className={project.framework === framework.id ? 'active' : ''}
+                key={framework.id}
+                onClick={() => updateProject({ framework: framework.id })}
+                type="button"
+              >
+                {framework.label}
+              </button>
+            ))}
+          </div>
+          <div className="code-actions">
+            <button onClick={copyCode} type="button">
+              <Clipboard size={16} /> Copy
             </button>
-          ))}
-        </div>
+            <button onClick={downloadCode} type="button">
+              <Download size={16} /> Download
+            </button>
+          </div>
+          <pre className="code-block">
+            <code>{exportedCode}</code>
+          </pre>
+        </section>
 
-        <div className="code-actions">
-          <button onClick={copyCode} type="button">
-            <Clipboard size={16} /> Copy
-          </button>
-          <button onClick={downloadCode} type="button">
-            <Download size={16} /> Download
-          </button>
-        </div>
-
-        <pre className="code-block">
-          <code>{exportedCode}</code>
-        </pre>
-
-        <section className="saved-section">
+        <section>
           <h2>Saved</h2>
-          {saved.length === 0 ? (
-            <p>No saved designs yet.</p>
-          ) : (
-            <div className="saved-list">
-              {saved.map((item) => (
-                <button key={item.id} onClick={() => setDesign(item)} type="button">
-                  <Eye size={14} />
-                  <span>{item.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="saved-list">
+            {savedProjects.length === 0 ? <p>No saved projects yet.</p> : null}
+            {savedProjects.map((item) => (
+              <button key={item.id} onClick={() => { const next = normalizeProject(item); setProject(next); setSelectedId(next.elements[0]?.id ?? null); }} type="button">
+                <Eye size={14} />
+                <span>{item.name}</span>
+              </button>
+            ))}
+          </div>
         </section>
       </aside>
+      {interactions.contextMenu ? (
+        <ContextMenu
+          locked={project.elements.find((element) => element.id === interactions.contextMenu?.elementId)?.locked ?? false}
+          onAction={runContextAction}
+          position={interactions.contextMenu}
+        />
+      ) : null}
     </main>
   );
 }
 
-function CardPreview({ design }: { design: Design }) {
-  const { content: c, style: s } = design;
-  return (
-    <article
-      className={`preview-card layout-${s.cardLayout}`}
-      style={
-        {
-          '--accent': s.accent,
-          '--surface': s.surface,
-          '--text': s.text,
-          '--muted': s.muted,
-          '--space': `${s.spacing}px`,
-          '--radius': `${s.radius}px`,
-          '--shadow': `0 ${Math.max(4, s.shadow)}px ${s.shadow * 2}px rgba(15, 23, 42, .14)`,
-          '--scale': s.fontScale,
-        } as CSSProperties
-      }
-    >
-      {s.showImage && <img alt="" src={c.image} />}
-      <div className="preview-card-body">
-        <p className="meta">{c.meta}</p>
-        <h2>{c.title}</h2>
-        <p className="subtitle">{c.subtitle}</p>
-        <p className="body-text">{c.body}</p>
-        {s.showBadges && (
-          <div className="badge-row">
-            {c.badges.map((badge) => (
-              <span key={badge}>{badge}</span>
-            ))}
-          </div>
-        )}
-        <ul>
-          {c.items.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-        {s.showActions && (
-          <div className="action-row">
-            <button type="button">{c.primaryAction}</button>
-            <button className="secondary" type="button">
-              {c.secondaryAction}
-            </button>
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
 
-function PagePreview({ design }: { design: Design }) {
-  const { content: c, style: s } = design;
+function Inspector({
+  element,
+  updateSelected,
+}: {
+  element: CanvasElement;
+  updateSelected: (recipe: (element: CanvasElement) => CanvasElement) => void;
+}) {
+  const updateFrame = (key: keyof CanvasElement['frame'], value: number) => {
+    updateSelected((current) => ({ ...current, frame: { ...current.frame, [key]: value } }));
+  };
+  const updateStyle = (key: keyof CanvasElement['style'], value: string | number) => {
+    updateSelected((current) => ({ ...current, style: { ...current.style, [key]: value } }));
+  };
+  const updateContent = (key: keyof CanvasElement['content'], value: string | string[]) => {
+    updateSelected((current) => ({ ...current, content: { ...current.content, [key]: value } }));
+  };
+
   return (
-    <div
-      className={`preview-page page-${s.pageLayout}`}
-      style={
-        {
-          '--accent': s.accent,
-          '--surface': s.surface,
-          '--text': s.text,
-          '--muted': s.muted,
-          '--space': `${s.spacing}px`,
-          '--radius': `${s.radius}px`,
-          '--shadow': `0 ${Math.max(4, s.shadow)}px ${s.shadow * 2}px rgba(15, 23, 42, .12)`,
-          '--scale': s.fontScale,
-        } as CSSProperties
-      }
-    >
-      <header>
-        <p>{c.meta}</p>
-        <h2>{c.title}</h2>
-        <span>{c.body}</span>
-      </header>
-      <div className="page-grid">
-        {c.items.map((item, index) => (
-          <section key={item}>
-            <Grid2X2 size={18} />
-            <strong>0{index + 1}</strong>
-            <h3>{item}</h3>
-            <p>{c.subtitle} module for fast layout generation.</p>
-          </section>
-        ))}
+    <section className="inspector">
+      <div className="inspector-title">
+        <div>
+          <h2>{element.name}</h2>
+          <span>{element.kind}</span>
+        </div>
+        <button onClick={() => updateSelected((current) => ({ ...current, locked: !current.locked }))} type="button">
+          {element.locked ? <Lock size={16} /> : <Unlock size={16} />}
+        </button>
       </div>
-    </div>
+
+      <Field label="Layer name">
+        <input value={element.name} onChange={(event) => updateSelected((current) => ({ ...current, name: event.target.value }))} />
+      </Field>
+
+      <div className="split-fields">
+        <Field label="X">
+          <input type="number" value={element.frame.x} onChange={(event) => updateFrame('x', Number(event.target.value))} />
+        </Field>
+        <Field label="Y">
+          <input type="number" value={element.frame.y} onChange={(event) => updateFrame('y', Number(event.target.value))} />
+        </Field>
+        <Field label="W">
+          <input min="24" type="number" value={element.frame.width} onChange={(event) => updateFrame('width', Number(event.target.value))} />
+        </Field>
+        <Field label="H">
+          <input min="24" type="number" value={element.frame.height} onChange={(event) => updateFrame('height', Number(event.target.value))} />
+        </Field>
+      </div>
+
+      {['heading', 'card', 'section'].includes(element.kind) ? (
+        <Field label="Title">
+          <input value={element.content.title} onChange={(event) => updateContent('title', event.target.value)} />
+        </Field>
+      ) : null}
+      {element.kind === 'card' ? (
+        <Field label="Subtitle">
+          <input value={element.content.subtitle} onChange={(event) => updateContent('subtitle', event.target.value)} />
+        </Field>
+      ) : null}
+      {['text', 'card', 'section'].includes(element.kind) ? (
+        <Field label="Body">
+          <textarea rows={4} value={element.content.body} onChange={(event) => updateContent('body', event.target.value)} />
+        </Field>
+      ) : null}
+      {['image', 'card'].includes(element.kind) ? (
+        <>
+          <Field label="Image URL">
+            <input value={element.content.imageUrl} onChange={(event) => updateContent('imageUrl', event.target.value)} />
+          </Field>
+          <Field label="Alt text">
+            <input value={element.content.altText} onChange={(event) => updateContent('altText', event.target.value)} />
+          </Field>
+        </>
+      ) : null}
+      {['button', 'card'].includes(element.kind) ? (
+        <Field label="Button label">
+          <input value={element.content.actionLabel} onChange={(event) => updateContent('actionLabel', event.target.value)} />
+        </Field>
+      ) : null}
+      {['badge-list', 'card'].includes(element.kind) ? (
+        <Field label="Items">
+          <textarea rows={3} value={element.content.items.join('\n')} onChange={(event) => updateContent('items', event.target.value.split('\n').filter(Boolean))} />
+        </Field>
+      ) : null}
+
+      <div className="split-fields">
+        <Field label="Text">
+          <input type="color" value={element.style.color} onChange={(event) => updateStyle('color', event.target.value)} />
+        </Field>
+        <Field label="Fill">
+          <input type="color" value={element.style.background === 'transparent' ? '#ffffff' : element.style.background} onChange={(event) => updateStyle('background', event.target.value)} />
+        </Field>
+        <Field label="Accent">
+          <input type="color" value={element.style.accent} onChange={(event) => updateStyle('accent', event.target.value)} />
+        </Field>
+      </div>
+
+      <Field label="Font family">
+        <select value={element.style.fontFamily} onChange={(event) => updateStyle('fontFamily', event.target.value)}>
+          <option value="Inter">Inter</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Arial">Arial</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+        </select>
+      </Field>
+      <Field label={`Heading/text size ${element.style.fontSize}px`}>
+        <input min="10" max="72" type="range" value={element.style.fontSize} onChange={(event) => updateStyle('fontSize', Number(event.target.value))} />
+      </Field>
+      <Field label={`Weight ${element.style.fontWeight}`}>
+        <input min="300" max="900" step="100" type="range" value={element.style.fontWeight} onChange={(event) => updateStyle('fontWeight', Number(event.target.value))} />
+      </Field>
+      <Field label={`Padding ${element.style.padding}px`}>
+        <input min="0" max="42" type="range" value={element.style.padding} onChange={(event) => updateStyle('padding', Number(event.target.value))} />
+      </Field>
+      <Field label={`Radius ${element.style.radius}px`}>
+        <input min="0" max="32" type="range" value={element.style.radius} onChange={(event) => updateStyle('radius', Number(event.target.value))} />
+      </Field>
+      <Field label={`Shadow ${element.style.shadow}`}>
+        <input min="0" max="28" type="range" value={element.style.shadow} onChange={(event) => updateStyle('shadow', Number(event.target.value))} />
+      </Field>
+      <Field label="Align">
+        <select value={element.style.textAlign} onChange={(event) => updateStyle('textAlign', event.target.value)}>
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+      </Field>
+    </section>
   );
 }
