@@ -1,46 +1,79 @@
-export type Mode = 'card' | 'page';
-export type PagePreset = 'dashboard' | 'product-grid' | 'article' | 'profile' | 'pricing' | 'features' | 'admin-list';
 export type Framework = 'react' | 'vue' | 'angular' | 'javafx' | 'bootstrap' | 'tailwind' | 'html-css';
 export type PreviewSize = 'desktop' | 'tablet' | 'mobile';
+export type ElementKind = 'section' | 'card' | 'heading' | 'text' | 'image' | 'button' | 'badge-list';
+export type FontFamily = 'Inter' | 'Georgia' | 'Arial' | 'Courier New' | 'Trebuchet MS';
+export type TextAlign = 'left' | 'center' | 'right';
+export type LayoutMode = 'free' | 'stack' | 'grid';
+export type ResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+export type CanvasCommand =
+  | 'remove'
+  | 'duplicate'
+  | 'reset-size'
+  | 'toggle-lock'
+  | 'bring-forward'
+  | 'send-backward'
+  | 'nudge';
 
-export type CardLayout = 'vertical' | 'horizontal' | 'compact';
-export type PageLayout = 'grid' | 'sidebar' | 'stacked';
+export interface CanvasElementStyle {
+  background: string;
+  color: string;
+  borderColor: string;
+  accent: string;
+  fontFamily: FontFamily;
+  fontSize: number;
+  fontWeight: number;
+  textAlign: TextAlign;
+  radius: number;
+  padding: number;
+  shadow: number;
+  opacity: number;
+}
 
-export interface DesignContent {
+export interface CanvasElementContent {
   title: string;
   subtitle: string;
   body: string;
-  image: string;
-  meta: string;
-  badges: string[];
-  primaryAction: string;
-  secondaryAction: string;
+  imageUrl: string;
+  altText: string;
+  actionLabel: string;
   items: string[];
 }
 
-export interface DesignStyle {
-  accent: string;
-  surface: string;
-  text: string;
-  muted: string;
-  spacing: number;
-  radius: number;
-  shadow: number;
-  fontScale: number;
-  showImage: boolean;
-  showBadges: boolean;
-  showActions: boolean;
-  cardLayout: CardLayout;
-  pageLayout: PageLayout;
+export interface CanvasElementFrame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
-export interface Design {
+export interface SelectionRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CanvasElement {
+  id: string;
+  kind: ElementKind;
+  name: string;
+  frame: CanvasElementFrame;
+  defaultFrame: CanvasElementFrame;
+  style: CanvasElementStyle;
+  content: CanvasElementContent;
+  locked: boolean;
+}
+
+export interface CanvasProject {
   id: string;
   name: string;
-  mode: Mode;
-  preset: PagePreset;
   framework: Framework;
-  content: DesignContent;
-  style: DesignStyle;
+  layoutMode: LayoutMode;
+  canvas: {
+    width: number;
+    height: number;
+    background: string;
+  };
+  elements: CanvasElement[];
   updatedAt: string;
 }
