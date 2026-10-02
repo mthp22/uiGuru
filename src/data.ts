@@ -1,4 +1,12 @@
-import type { CanvasElement, CanvasElementContent, CanvasElementStyle, CanvasProject, ElementKind, Framework } from './types';
+import type {
+  CanvasElement,
+  CanvasElementContent,
+  CanvasElementStyle,
+  CanvasProject,
+  ComponentId,
+  ElementKind,
+  Framework,
+} from './types';
 
 export const frameworks: { id: Framework; label: string }[] = [
   { id: 'react', label: 'React' },
@@ -25,6 +33,17 @@ export const presetProjects = [
   { id: 'product', label: 'Product Showcase' },
   { id: 'profile', label: 'Profile Header' },
 ] as const;
+
+export const componentPalette: { id: ComponentId; label: string; description: string }[] = [
+  { id: 'navbar', label: 'Navbar', description: 'Brand, links, and a call to action.' },
+  { id: 'hero', label: 'Hero', description: 'Headline, copy, actions, and media.' },
+  { id: 'feature-grid', label: 'Feature Grid', description: 'Intro plus a row of feature cards.' },
+  { id: 'pricing-card', label: 'Pricing Card', description: 'Three plan cards with actions.' },
+  { id: 'login-form', label: 'Login Form', description: 'Fields, helper link, and submit.' },
+  { id: 'contact-form', label: 'Contact Form', description: 'Name, email, message, and send.' },
+  { id: 'testimonial', label: 'Testimonial', description: 'Quote, attribution, and badge.' },
+  { id: 'footer', label: 'Footer', description: 'Brand, link columns, and legal line.' },
+];
 
 const baseStyle: CanvasElementStyle = {
   background: '#ffffff',
@@ -164,4 +183,119 @@ export function createPresetProject(preset: (typeof presetProjects)[number]['id'
   }
   project.updatedAt = new Date().toISOString();
   return project;
+}
+
+const fieldStyle: Partial<CanvasElementStyle> = {
+  background: '#f8fafc',
+  borderColor: '#cbd5e1',
+  color: '#64748b',
+  radius: 8,
+  padding: 12,
+  shadow: 0,
+};
+
+const darkSurface: Partial<CanvasElementStyle> = {
+  background: '#0f172a',
+  borderColor: '#0f172a',
+  color: '#cbd5e1',
+  shadow: 0,
+  padding: 0,
+};
+
+const linkStyle: Partial<CanvasElementStyle> = { color: '#e2e8f0', fontWeight: 700, fontSize: 14, padding: 0 };
+
+export function createComponentElements(id: ComponentId, origin: { x: number; y: number }): CanvasElement[] {
+  const place = (
+    kind: ElementKind,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    content: Partial<CanvasElementContent> = {},
+    style: Partial<CanvasElementStyle> = {},
+  ): CanvasElement => {
+    const element = createElement(kind);
+    const frame = { x: origin.x + x, y: origin.y + y, width, height };
+    return {
+      ...element,
+      frame,
+      defaultFrame: frame,
+      content: { ...element.content, ...content },
+      style: { ...element.style, ...style },
+    };
+  };
+
+  switch (id) {
+    case 'navbar':
+      return [
+        place('section', 0, 0, 940, 72, { title: '', body: '' }, { background: '#ffffff', borderColor: '#dbe3ee', shadow: 4, padding: 0 }),
+        place('text', 26, 20, 220, 34, { body: 'uiGuru' }, { color: '#0f172a', fontSize: 22, fontWeight: 800, padding: 0 }),
+        place('text', 372, 24, 340, 26, { body: 'Features   Pricing   Docs' }, { color: '#475569', padding: 0 }),
+        place('button', 812, 14, 104, 44, { actionLabel: 'Sign up' }, { padding: 10 }),
+      ];
+    case 'hero':
+      return [
+        place('heading', 0, 16, 560, 130, { title: 'Build UI visually. Ship real code.' }, { fontSize: 46, padding: 0 }),
+        place('text', 0, 160, 540, 96, { body: 'Drag, drop, customize, and export production-ready interfaces to React, Vue, Angular, and more.' }, { fontSize: 18, padding: 0 }),
+        place('button', 0, 276, 176, 52, { actionLabel: 'Start building' }),
+        place('button', 192, 276, 176, 52, { actionLabel: 'See how it works' }, { background: '#ffffff', color: '#1d4ed8', borderColor: '#bfdbfe', shadow: 4 }),
+        place('image', 600, 16, 340, 312, {}, { radius: 14 }),
+      ];
+    case 'feature-grid':
+      return [
+        place('heading', 0, 0, 660, 70, { title: 'Everything you need to ship UI faster' }, { fontSize: 34, padding: 0 }),
+        place('text', 0, 78, 600, 44, { body: 'Blocks, a visual inspector, responsive preview, and clean export in one focused builder.' }, { color: '#64748b', padding: 0 }),
+        place('card', 0, 148, 296, 252, { subtitle: 'Blocks', title: 'Drag and drop', body: 'Compose layouts from ready-made blocks.', actionLabel: 'Explore' }),
+        place('card', 322, 148, 296, 252, { subtitle: 'Inspector', title: 'Edit visually', body: 'Change content, type, color, and spacing without touching code.', actionLabel: 'Edit' }),
+        place('card', 644, 148, 296, 252, { subtitle: 'Export', title: 'Own the code', body: 'Take clean React, Vue, Angular, or HTML out of the builder.', actionLabel: 'Export' }),
+      ];
+    case 'pricing-card':
+      return [
+        place('heading', 0, 0, 660, 60, { title: 'Simple, transparent pricing' }, { fontSize: 32, padding: 0 }),
+        place('card', 0, 84, 296, 336, { subtitle: 'Free', title: 'Starter', body: 'For side projects and quick prototypes.', items: ['3 projects', 'HTML/CSS export'], actionLabel: 'Choose Starter' }),
+        place('card', 322, 84, 296, 336, { subtitle: '$19 / mo', title: 'Pro', body: 'For builders shipping client work every week.', items: ['Unlimited projects', 'All frameworks'], actionLabel: 'Choose Pro' }),
+        place('card', 644, 84, 296, 336, { subtitle: '$49 / mo', title: 'Team', body: 'Shared blocks and exports for small teams.', items: ['Everything in Pro', 'Shared presets'], actionLabel: 'Choose Team' }),
+      ];
+    case 'login-form':
+      return [
+        place('section', 0, 0, 420, 424, { title: '', body: '' }, { background: '#ffffff', borderColor: '#e2e8f0', shadow: 12, padding: 0 }),
+        place('heading', 32, 32, 340, 46, { title: 'Welcome back' }, { fontSize: 28, padding: 0 }),
+        place('text', 32, 86, 340, 34, { body: 'Sign in to continue building.' }, { color: '#64748b', padding: 0 }),
+        place('text', 32, 140, 356, 46, { body: 'you@example.com' }, fieldStyle),
+        place('text', 32, 202, 356, 46, { body: '••••••••' }, fieldStyle),
+        place('text', 32, 262, 356, 28, { body: 'Forgot password?' }, { color: '#2563eb', fontSize: 13, fontWeight: 700, padding: 0 }),
+        place('button', 32, 306, 356, 48, { actionLabel: 'Sign in' }),
+        place('text', 32, 370, 356, 30, { body: 'No account yet? Create one' }, { color: '#64748b', fontSize: 13, padding: 0 }),
+      ];
+    case 'contact-form':
+      return [
+        place('section', 0, 0, 560, 470, { title: '', body: '' }, { background: '#ffffff', borderColor: '#e2e8f0', shadow: 12, padding: 0 }),
+        place('heading', 36, 36, 420, 46, { title: 'Contact us' }, { fontSize: 30, padding: 0 }),
+        place('text', 36, 92, 480, 34, { body: 'We usually reply within one business day.' }, { color: '#64748b', padding: 0 }),
+        place('text', 36, 146, 488, 46, { body: 'Name' }, fieldStyle),
+        place('text', 36, 206, 488, 46, { body: 'Email' }, fieldStyle),
+        place('text', 36, 266, 488, 104, { body: 'How can we help?' }, fieldStyle),
+        place('button', 36, 390, 176, 48, { actionLabel: 'Send message' }),
+      ];
+    case 'testimonial':
+      return [
+        place('section', 0, 0, 760, 236, { title: '', body: '' }, { background: '#eff6ff', borderColor: '#dbeafe', shadow: 6, padding: 0 }),
+        place('text', 40, 40, 680, 104, { body: '“uiGuru cut our UI handoff time in half. We lay out the screen, export real code, and ship.”' }, { color: '#1e293b', fontSize: 22, fontWeight: 600, padding: 0 }),
+        place('text', 40, 156, 680, 30, { body: 'Dana K. — Product Lead, Northwind' }, { color: '#2563eb', fontWeight: 700, padding: 0 }),
+        place('badge-list', 40, 194, 320, 34, { items: ['Verified customer'] }, { padding: 0 }),
+      ];
+    case 'footer':
+      return [
+        place('section', 0, 0, 940, 224, { title: '', body: '' }, darkSurface),
+        place('heading', 40, 34, 300, 42, { title: 'uiGuru' }, { color: '#ffffff', fontSize: 26, background: 'transparent', borderColor: 'transparent', padding: 0 }),
+        place('text', 40, 86, 400, 56, { body: 'Build visually. Own the code.' }, { color: '#94a3b8', padding: 0 }),
+        place('text', 560, 40, 150, 28, { body: 'Features' }, linkStyle),
+        place('text', 560, 78, 150, 28, { body: 'Templates' }, linkStyle),
+        place('text', 560, 116, 150, 28, { body: 'Export targets' }, linkStyle),
+        place('text', 760, 40, 150, 28, { body: 'Docs' }, linkStyle),
+        place('text', 760, 78, 150, 28, { body: 'Changelog' }, linkStyle),
+        place('text', 760, 116, 150, 28, { body: 'Support' }, linkStyle),
+        place('text', 40, 176, 500, 28, { body: '© 2026 uiGuru' }, { color: '#64748b', fontSize: 13, padding: 0 }),
+      ];
+  }
 }

@@ -1,4 +1,11 @@
-import type { CanvasElement, CanvasElementFrame, ResizeHandle, SelectionRect } from './types';
+import type {
+  CanvasElement,
+  CanvasElementFrame,
+  ResizeHandle,
+  SelectionRect,
+  SnapGuides,
+  SnapTargets,
+} from './types';
 
 export const minFrameSize = 24;
 
@@ -85,4 +92,92 @@ export function frameIntersectsRect(frame: CanvasElementFrame, rect: SelectionRe
 
 export function topmostIntersecting(elements: CanvasElement[], rect: SelectionRect) {
   return [...elements].reverse().find((element) => frameIntersectsRect(element.frame, rect)) ?? null;
+}
+
+export const snapThreshold = 6;
+export const gridSize = 8;
+
+export function frameArea(frame: CanvasElementFrame) {
+  return frame.width * frame.height;
+}
+
+export function frameContains(outer: CanvasElementFrame, inner: CanvasElementFrame) {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
+export function alignmentTargets(
+  elements: CanvasElement[],
+  canvas: { width: number; height: number },
+): SnapTargets {
+  const x = [0, canvas.width / 2, canvas.width];
+  const y = [0, canvas.height / 2, canvas.height];
+  for (const element of elements) {
+    x.push(element.frame.x, element.frame.x + element.frame.width / 2, element.frame.x + element.frame.width);
+    y.push(element.frame.y, element.frame.y + element.frame.height / 2, element.frame.y + element.frame.height);
+  }
+  return { x, y };
+}
+
+function snapAxis(start: number, size: number, targets: number[]) {
+  const edges = [start, start + size / 2, start + size];
+  let best: { delta: number; at: number; distance: number } | null = null;
+  for (const edge of edges) {
+    for (const target of targets) {
+      const distance = Math.abs(edge - target);
+      if (distance <= snapThreshold && (!best || distance < best.distance)) {
+        best = { delta: target - edge, at: target, distance };
+      }
+    }
+  }
+  return best;
+}
+
+export function snapFrame(
+  frame: CanvasElementFrame,
+  targets: SnapTargets,
+): { frame: CanvasElementFrame; guides: SnapGuides } {
+  const horizontal = snapAxis(frame.x, frame.width, targets.x);
+  const vertical = snapAxis(frame.y, frame.height, targets.y);
+  return {
+    frame: {
+      ...frame,
+      x: horizontal ? frame.x + horizontal.delta : Math.round(frame.x / gridSize) * gridSize,
+      y: vertical ? frame.y + vertical.delta : Math.round(frame.y / gridSize) * gridSize,
+    },
+    guides: { x: horizontal ? [horizontal.at] : [], y: vertical ? [vertical.at] : [] },
+  };
+}
+
+export interface LayerNode {
+  element: CanvasElement;
+  children: LayerNode[];
+}
+
+export function buildLayerTree(elements: CanvasElement[]): LayerNode[] {
+  const nodes: LayerNode[] = elements.map((element) => ({ element, children: [] }));
+  const roots: LayerNode[] = [];
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    let parent: LayerNode | null = null;
+    for (let candidateIndex = 0; candidateIndex < nodes.length; candidateIndex += 1) {
+      if (candidateIndex === index) continue;
+      const candidate = nodes[candidateIndex].element;
+      if (candidate.kind !== 'section' && candidate.kind !== 'card') continue;
+      if (!frameContains(candidate.frame, node.element.frame)) continue;
+      if (frameArea(candidate.frame) <= frameArea(node.element.frame)) continue;
+      if (!parent || frameArea(candidate.frame) < frameArea(parent.element.frame)) {
+        parent = nodes[candidateIndex];
+      }
+    }
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+
+  return roots;
 }
