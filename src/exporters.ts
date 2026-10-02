@@ -5,6 +5,25 @@ const esc = (value: string) =>
 
 const cssNumber = (value: number, unit = 'px') => `${Math.round(value)}${unit}`;
 
+function projectNameWords(project: CanvasProject) {
+  return project.name.match(/[A-Za-z0-9]+/g) ?? [];
+}
+
+export function exportComponentName(project: CanvasProject) {
+  const name = projectNameWords(project)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+  if (!name) return 'UiGuruCanvas';
+  return /^[A-Za-z]/.test(name) ? name : `UiGuru${name}`;
+}
+
+export function exportFileStem(project: CanvasProject) {
+  const stem = projectNameWords(project)
+    .map((word) => word.toLowerCase())
+    .join('-');
+  return stem || 'uiguru-canvas';
+}
+
 function elementStyle(element: CanvasElement, absolute = true) {
   const { frame, style } = element;
   const position = absolute
@@ -63,7 +82,7 @@ function htmlCss(project: CanvasProject) {
 }
 
 function react(project: CanvasProject) {
-  return `export function UiGuruCanvas() {
+  return `export function ${exportComponentName(project)}() {
   return (
     ${htmlCanvas(project).replaceAll('class=', 'className=').replaceAll('style="', 'style={{"').replaceAll(';"', '"}}')}
   );
@@ -80,13 +99,13 @@ function angular(project: CanvasProject) {
   return `import { Component } from '@angular/core';
 
 @Component({
-  selector: 'app-uiguru-canvas',
+  selector: 'app-${exportFileStem(project)}',
   standalone: true,
   template: \`
 ${htmlCanvas(project)}
   \`
 })
-export class UiGuruCanvasComponent {}`;
+export class ${exportComponentName(project)}Component {}`;
 }
 
 function bootstrap(project: CanvasProject) {
@@ -123,7 +142,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
-public class UiGuruCanvas extends Application {
+public class ${exportComponentName(project)} extends Application {
   @Override public void start(Stage stage) {
     Pane root = new Pane();
     root.setStyle("-fx-background-color: ${project.canvas.background};");
