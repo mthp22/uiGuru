@@ -1,6 +1,15 @@
 export type Framework = 'react' | 'vue' | 'angular' | 'javafx' | 'bootstrap' | 'tailwind' | 'html-css';
 export type PreviewSize = 'desktop' | 'tablet' | 'mobile';
 export type ElementKind = 'section' | 'card' | 'heading' | 'text' | 'image' | 'button' | 'badge-list';
+export type ComponentId =
+  | 'navbar'
+  | 'hero'
+  | 'feature-grid'
+  | 'pricing-card'
+  | 'login-form'
+  | 'contact-form'
+  | 'testimonial'
+  | 'footer';
 export type FontFamily = 'Inter' | 'Georgia' | 'Arial' | 'Courier New' | 'Trebuchet MS';
 export type TextAlign = 'left' | 'center' | 'right';
 export type LayoutMode = 'free' | 'stack' | 'grid';
@@ -51,6 +60,16 @@ export interface SelectionRect {
   y: number;
   width: number;
   height: number;
+}
+
+export interface SnapGuides {
+  x: number[];
+  y: number[];
+}
+
+export interface SnapTargets {
+  x: number[];
+  y: number[];
 }
 
 export interface CanvasElement {

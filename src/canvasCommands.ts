@@ -1,5 +1,5 @@
 import { clampFrameToCanvas, moveFrame, resizeFrame } from './geometry';
-import type { CanvasElement, CanvasProject, ResizeHandle } from './types';
+import type { CanvasElement, CanvasElementFrame, CanvasProject, ResizeHandle } from './types';
 
 const cloneOffset = 28;
 
@@ -8,10 +8,14 @@ function touch(project: CanvasProject): CanvasProject {
 }
 
 function mapElement(project: CanvasProject, elementId: string, recipe: (element: CanvasElement) => CanvasElement): CanvasProject {
-  return touch({
-    ...project,
-    elements: project.elements.map((element) => (element.id === elementId ? recipe(element) : element)),
+  let changed = false;
+  const elements = project.elements.map((element) => {
+    if (element.id !== elementId) return element;
+    const next = recipe(element);
+    if (next !== element) changed = true;
+    return next;
   });
+  return changed ? touch({ ...project, elements }) : project;
 }
 
 export function updateElement(project: CanvasProject, elementId: string, recipe: (element: CanvasElement) => CanvasElement) {
@@ -22,12 +26,12 @@ export function removeElement(project: CanvasProject, elementId: string) {
   return touch({ ...project, elements: project.elements.filter((element) => element.id !== elementId) });
 }
 
-export function duplicateElement(project: CanvasProject, elementId: string) {
+export function duplicateElement(project: CanvasProject, elementId: string, cloneId: string) {
   const element = project.elements.find((item) => item.id === elementId);
-  if (!element) return { project, duplicatedId: null };
+  if (!element) return project;
   const clone: CanvasElement = {
     ...element,
-    id: crypto.randomUUID(),
+    id: cloneId,
     name: `${element.name} copy`,
     frame: clampFrameToCanvas(
       { ...element.frame, x: element.frame.x + cloneOffset, y: element.frame.y + cloneOffset },
@@ -40,7 +44,7 @@ export function duplicateElement(project: CanvasProject, elementId: string) {
     },
     locked: false,
   };
-  return { project: touch({ ...project, elements: [...project.elements, clone] }), duplicatedId: clone.id };
+  return touch({ ...project, elements: [...project.elements, clone] });
 }
 
 export function resetElementSize(project: CanvasProject, elementId: string) {
@@ -85,6 +89,10 @@ export function moveElement(project: CanvasProject, elementId: string, delta: { 
   return mapElement(project, elementId, (element) =>
     element.locked ? element : { ...element, frame: moveFrame(element.frame, delta, project.canvas) },
   );
+}
+
+export function setElementFrame(project: CanvasProject, elementId: string, frame: CanvasElementFrame) {
+  return mapElement(project, elementId, (element) => (element.locked ? element : { ...element, frame }));
 }
 
 export function resizeElement(
