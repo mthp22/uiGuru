@@ -2,11 +2,9 @@ import {
   useCallback,
   useEffect,
   useState,
-  type Dispatch,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
-  type SetStateAction,
 } from 'react';
 import {
   duplicateElement,
@@ -14,15 +12,27 @@ import {
   removeElement,
   resetElementSize,
   resizeElement,
+  setElementFrame,
 } from './canvasCommands';
-import { normalizeSelectionRect, toCanvasPoint, topmostIntersecting } from './geometry';
-import type { CanvasProject, ResizeHandle, SelectionRect } from './types';
+import {
+  alignmentTargets,
+  clampFrameToCanvas,
+  moveFrame,
+  normalizeSelectionRect,
+  snapFrame,
+  toCanvasPoint,
+  topmostIntersecting,
+} from './geometry';
+import type { CanvasProject, ResizeHandle, SelectionRect, SnapGuides } from './types';
 
 type InteractionMode =
   | { type: 'idle' }
   | { type: 'move'; elementId: string; start: { x: number; y: number } }
   | { type: 'resize'; elementId: string; handle: ResizeHandle; start: { x: number; y: number } }
   | { type: 'marquee'; start: { x: number; y: number }; current: { x: number; y: number } };
+
+export type ProjectUpdater = (recipe: (current: CanvasProject) => CanvasProject) => void;
+export type ProjectCommitter = (recipe: (current: CanvasProject) => CanvasProject, groupKey?: string) => void;
 
 export interface ContextMenuState {
   x: number;
@@ -35,9 +45,15 @@ interface UseCanvasInteractionsArgs {
   project: CanvasProject;
   scale: number;
   selectedId: string | null;
-  setProject: Dispatch<SetStateAction<CanvasProject>>;
+  setProject: ProjectUpdater;
+  commitProject: ProjectCommitter;
+  endStage: () => void;
+  undo: () => void;
+  redo: () => void;
   setSelectedId: (elementId: string | null) => void;
 }
+
+const noGuides: SnapGuides = { x: [], y: [] };
 
 export function useCanvasInteractions({
   canvasRef,
@@ -45,10 +61,15 @@ export function useCanvasInteractions({
   scale,
   selectedId,
   setProject,
+  commitProject,
+  endStage,
+  undo,
+  redo,
   setSelectedId,
 }: UseCanvasInteractionsArgs) {
   const [mode, setMode] = useState<InteractionMode>({ type: 'idle' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [guides, setGuides] = useState<SnapGuides>(noGuides);
 
   const marquee =
     mode.type === 'marquee' ? normalizeSelectionRect(mode.start, mode.current) : null;
@@ -106,18 +127,30 @@ export function useCanvasInteractions({
       const delta = { x: point.x - mode.start.x, y: point.y - mode.start.y };
 
       if (mode.type === 'move') {
-        setProject((current) => moveElement(current, mode.elementId, delta));
+        const element = project.elements.find((item) => item.id === mode.elementId);
+        if (element) {
+          const moved = moveFrame(element.frame, delta, project.canvas);
+          const targets = alignmentTargets(
+            project.elements.filter((item) => item.id !== mode.elementId),
+            project.canvas,
+          );
+          const snapped = snapFrame(moved, targets);
+          setGuides(snapped.guides);
+          setProject((current) =>
+            setElementFrame(current, mode.elementId, clampFrameToCanvas(snapped.frame, current.canvas)),
+          );
+        }
         setMode({ ...mode, start: point });
+        return;
       }
 
       if (mode.type === 'resize') {
         setProject((current) => resizeElement(current, mode.elementId, mode.handle, delta));
         setMode({ ...mode, start: point });
+        return;
       }
 
-      if (mode.type === 'marquee') {
-        setMode({ ...mode, current: point });
-      }
+      setMode({ ...mode, current: point });
     };
 
     const handlePointerUp = () => {
@@ -126,6 +159,8 @@ export function useCanvasInteractions({
         const hit = topmostIntersecting(project.elements, rect);
         setSelectedId(hit?.id ?? null);
       }
+      setGuides(noGuides);
+      endStage();
       setMode({ type: 'idle' });
     };
 
@@ -135,7 +170,7 @@ export function useCanvasInteractions({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [getPoint, mode, project.elements, setProject, setSelectedId]);
+  }, [endStage, getPoint, mode, project, setProject, setSelectedId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -149,12 +184,20 @@ export function useCanvasInteractions({
         return;
       }
 
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+        return;
+      }
+
       if (!selectedId) return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
-        setProject((current) => removeElement(current, selectedId));
+        commitProject((current) => removeElement(current, selectedId));
         setSelectedId(null);
+        setContextMenu(null);
       }
 
       if (event.key.startsWith('Arrow')) {
@@ -164,31 +207,30 @@ export function useCanvasInteractions({
           x: event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
           y: event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0,
         };
-        setProject((current) => moveElement(current, selectedId, delta));
+        commitProject((current) => moveElement(current, selectedId, delta), `nudge:${selectedId}`);
       }
 
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
         event.preventDefault();
-        setProject((current) => {
-          const result = duplicateElement(current, selectedId);
-          if (result.duplicatedId) setSelectedId(result.duplicatedId);
-          return result.project;
-        });
+        const cloneId = crypto.randomUUID();
+        commitProject((current) => duplicateElement(current, selectedId, cloneId));
+        setSelectedId(cloneId);
       }
 
-      if ((event.ctrlKey || event.metaKey) && event.key === '0') {
+      if ((event.metaKey || event.ctrlKey) && event.key === '0') {
         event.preventDefault();
-        setProject((current) => resetElementSize(current, selectedId));
+        commitProject((current) => resetElementSize(current, selectedId), `size:${selectedId}`);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, setProject, setSelectedId]);
+  }, [commitProject, redo, selectedId, setSelectedId, undo]);
 
   return {
     closeContextMenu,
     contextMenu,
+    guides,
     marquee,
     openContextMenu,
     startMarquee,
