@@ -35,6 +35,8 @@ jobs:
 
       - name: Build application
         run: npm run build
+        env:
+          VITE_CLARITY_TOKEN: {vars.VITE_CLARITY_TOKEN}
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
