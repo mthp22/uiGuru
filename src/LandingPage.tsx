@@ -4,12 +4,38 @@ import {
   Code2,
   FileCode2,
   MonitorSmartphone,
+  Moon,
   MousePointerClick,
   Save,
   SlidersHorizontal,
+  Sun,
   Undo2,
 } from 'lucide-react';
+import { MotionConfig, motion, type Variants } from 'framer-motion';
 import { frameworks } from './data';
+import { useTheme } from './useTheme';
+
+const heroStagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+};
+
+const heroItem: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+};
+
+const reveal: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+};
+
+const revealViewport = { once: true, amount: 0.25 } as const;
+
+const listStagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
 
 const codeSample = `export function HeroSection() {
   return (
@@ -27,7 +53,7 @@ const features = [
   { icon: <MonitorSmartphone size={18} />, title: 'Responsive preview', copy: 'Check desktop, tablet, and mobile widths.' },
   { icon: <Blocks size={18} />, title: 'Reusable components', copy: 'Drop in navbars, heroes, forms, and footers.' },
   { icon: <Undo2 size={18} />, title: 'Undo / redo', copy: 'Experiment freely with reliable history.' },
-  { icon: <FileCode2 size={18} />, title: 'Seven export targets', copy: 'React, Vue, Angular, JavaFX, and more.' },
+  { icon: <FileCode2 size={18} />, title: 'Five export targets', copy: 'React (.jsx/.tsx), Vue, Angular, JavaFX, HTML/CSS.' },
   { icon: <Save size={18} />, title: 'Autosave', copy: 'Refresh the tab and your work is still there.' },
   { icon: <Code2 size={18} />, title: 'Clean generated code', copy: 'Semantic output with no editor leftovers.' },
 ];
@@ -39,8 +65,11 @@ const steps = [
 ];
 
 export function LandingPage({ onOpenBuilder }: { onOpenBuilder: () => void }) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   return (
-    <div className="landing">
+    <MotionConfig reducedMotion="user">
+      <div className="landing">
       <header className="landing-nav">
         <a className="landing-logo" href="#top">
           uiGuru
@@ -50,33 +79,54 @@ export function LandingPage({ onOpenBuilder }: { onOpenBuilder: () => void }) {
           <a href="#how-it-works">How it works</a>
           <a href="#examples">Examples</a>
         </nav>
-        <button className="nav-cta" onClick={onOpenBuilder} type="button">
-          Open builder
-        </button>
+        <div className="nav-actions">
+          <button
+            aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+            aria-pressed={isDark}
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={isDark ? 'Light theme' : 'Dark theme'}
+            type="button"
+          >
+            {isDark ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+          <button className="nav-cta" onClick={onOpenBuilder} type="button">
+            Open builder
+          </button>
+        </div>
       </header>
 
       <main id="top">
         <section className="landing-hero">
-          <p className="eyebrow">Low-code UI builder</p>
-          <h1>
-            Build UI visually.
-            <br />
-            Ship real code.
-          </h1>
-          <p className="hero-copy">
-            Turn your interface ideas into working code without starting from scratch. Drag, drop, customize, and
-            export production-ready interfaces to React, Vue, Angular, and more.
-          </p>
-          <div className="hero-actions">
-            <button className="button-primary" onClick={onOpenBuilder} type="button">
-              Start building <ArrowRight size={17} />
-            </button>
-            <a className="button-secondary" href="#how-it-works">
-              See how it works
-            </a>
-          </div>
+          <motion.div variants={heroStagger} initial="hidden" animate="show">
+            <motion.p className="eyebrow" variants={heroItem}>
+              Low-code UI builder
+            </motion.p>
+            <motion.h1 variants={heroItem}>
+              Build UI visually.
+              <br />
+              Ship real code.
+            </motion.h1>
+            <motion.p className="hero-copy" variants={heroItem}>
+              Turn your interface ideas into working code without starting from scratch. Drag, drop, customize, and
+              export production-ready interfaces to React, Vue, Angular, and more.
+            </motion.p>
+            <motion.div className="hero-actions" variants={heroItem}>
+              <button className="button-primary" onClick={onOpenBuilder} type="button">
+                Start building <ArrowRight size={17} />
+              </button>
+              <a className="button-secondary" href="#how-it-works">
+                See how it works
+              </a>
+            </motion.div>
+          </motion.div>
 
-          <div className="hero-preview">
+          <motion.div
+            className="hero-preview"
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          >
             <div className="preview-window" aria-hidden="true">
               <div className="preview-toolbar">
                 <span className="preview-dot" />
@@ -139,33 +189,54 @@ export function LandingPage({ onOpenBuilder }: { onOpenBuilder: () => void }) {
               <b aria-hidden="true">→</b>
               <span>Code</span>
             </div>
-          </div>
+          </motion.div>
         </section>
 
-        <section className="export-strip" aria-label="Export targets">
+        <motion.section
+          className="export-strip"
+          aria-label="Export targets"
+          variants={reveal}
+          initial="hidden"
+          whileInView="show"
+          viewport={revealViewport}
+        >
           <p>One UI. Multiple targets.</p>
           <ul>
             {frameworks.map((framework) => (
               <li key={framework.id}>{framework.label}</li>
             ))}
           </ul>
-        </section>
+        </motion.section>
 
-        <section className="landing-section" id="how-it-works">
+        <motion.section
+          className="landing-section"
+          id="how-it-works"
+          variants={reveal}
+          initial="hidden"
+          whileInView="show"
+          viewport={revealViewport}
+        >
           <p className="section-kicker">How it works</p>
           <h2>Drag. Design. Export.</h2>
-          <ol className="steps">
+          <motion.ol className="steps" variants={listStagger} initial="hidden" whileInView="show" viewport={revealViewport}>
             {steps.map((step) => (
-              <li key={step.number}>
+              <motion.li key={step.number} variants={reveal}>
                 <span className="step-number">{step.number}</span>
                 <h3>{step.title}</h3>
                 <p>{step.copy}</p>
-              </li>
+              </motion.li>
             ))}
-          </ol>
-        </section>
+          </motion.ol>
+        </motion.section>
 
-        <section className="landing-section split-section" id="examples">
+        <motion.section
+          className="landing-section split-section"
+          id="examples"
+          variants={reveal}
+          initial="hidden"
+          whileInView="show"
+          viewport={revealViewport}
+        >
           <div className="split-copy">
             <p className="section-kicker">Examples</p>
             <h2>Your design. Your code.</h2>
@@ -186,30 +257,43 @@ export function LandingPage({ onOpenBuilder }: { onOpenBuilder: () => void }) {
               <code>{codeSample}</code>
             </pre>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="landing-section" id="features">
+        <motion.section
+          className="landing-section"
+          id="features"
+          variants={reveal}
+          initial="hidden"
+          whileInView="show"
+          viewport={revealViewport}
+        >
           <p className="section-kicker">Features</p>
           <h2>Everything the builder does, nothing it doesn&apos;t.</h2>
-          <ul className="feature-list">
+          <motion.ul className="feature-list" variants={listStagger} initial="hidden" whileInView="show" viewport={revealViewport}>
             {features.map((feature) => (
-              <li key={feature.title}>
+              <motion.li key={feature.title} variants={reveal}>
                 <span className="feature-icon">{feature.icon}</span>
                 <div>
                   <strong>{feature.title}</strong>
                   <span>{feature.copy}</span>
                 </div>
-              </li>
+              </motion.li>
             ))}
-          </ul>
-        </section>
+          </motion.ul>
+        </motion.section>
 
-        <section className="landing-section final-cta">
+        <motion.section
+          className="landing-section final-cta"
+          variants={reveal}
+          initial="hidden"
+          whileInView="show"
+          viewport={revealViewport}
+        >
           <h2>Start building your next interface.</h2>
           <button className="button-primary" onClick={onOpenBuilder} type="button">
             Open uiGuru <ArrowRight size={17} />
           </button>
-        </section>
+        </motion.section>
       </main>
 
       <footer className="landing-footer">
@@ -217,5 +301,6 @@ export function LandingPage({ onOpenBuilder }: { onOpenBuilder: () => void }) {
         <span>Build visually. Own the code.</span>
       </footer>
     </div>
+    </MotionConfig>
   );
 }

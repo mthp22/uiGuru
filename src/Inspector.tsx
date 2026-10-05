@@ -28,6 +28,8 @@ const contentByKind: Record<ElementKind, { key: keyof CanvasElementContent; labe
     { key: 'altText', label: 'Alt text' },
   ],
   button: [{ key: 'actionLabel', label: 'Label' }],
+  input: [{ key: 'body', label: 'Placeholder' }],
+  textarea: [{ key: 'body', label: 'Placeholder' }],
   'badge-list': [{ key: 'items', label: 'Items', multiline: true }],
   section: [
     { key: 'title', label: 'Title' },

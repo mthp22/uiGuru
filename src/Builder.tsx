@@ -16,11 +16,13 @@ import {
   Eye,
   Layers,
   Monitor,
+  Moon,
   MousePointer2,
   Redo2,
   RotateCcw,
   Save,
   Smartphone,
+  Sun,
   Tablet,
   Trash2,
   Undo2,
@@ -49,12 +51,13 @@ import {
   frameworks,
   presetProjects,
 } from './data';
-import { exportComponentName, exportFileStem, exportProject } from './exporters';
+import { exportFileName, exportProject } from './exporters';
 import { Field, Inspector } from './Inspector';
 import { clamp } from './geometry';
 import { marqueeStyle, useCanvasInteractions } from './useCanvasInteractions';
 import { useHistory } from './useHistory';
-import type { CanvasElement, CanvasProject, ComponentId, ElementKind, PreviewSize } from './types';
+import { useTheme } from './useTheme';
+import type { CanvasElement, CanvasProject, ComponentId, ElementKind, PreviewSize, ReactFlavor} from './types';
 
 const savedProjectsKey = 'uiguru:canvas-projects';
 const currentProjectKey = 'uiguru:current-project';
@@ -121,9 +124,15 @@ export function Builder({ onHome }: { onHome: () => void }) {
   const [zoom, setZoom] = useState(1);
   const [savedProject, setSavedProject] = useState<CanvasProject>(() => history.present);
   const [copied, setCopied] = useState(false);
+  const [reactFlavor, setReactFlavor] = useState<ReactFlavor>('tsx');
+  const { theme, toggleTheme } = useTheme();
+  const isDarkTheme = theme === 'dark';
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const exportedCode = useMemo(() => exportProject(project, project.framework), [project]);
-  const selected = project.elements.find((element) => element.id === selectedId) ?? null;
+  const exportedCode = useMemo(
+    () => exportProject(project, project.framework, reactFlavor),
+    [project, reactFlavor],
+  );
+  const exportName = exportFileName(project, project.framework, reactFlavor);  const selected = project.elements.find((element) => element.id === selectedId) ?? null;
   const previewScale = Math.min(1, previewWidth[previewSize] / project.canvas.width) * zoom;
 
   function commitProject(recipe: (current: CanvasProject) => CanvasProject, groupKey?: string) {
@@ -235,12 +244,17 @@ export function Builder({ onHome }: { onHome: () => void }) {
   };
 
   const downloadCode = () => {
-    const extension = project.framework === 'javafx' ? 'java' : project.framework === 'html-css' ? 'html' : 'txt';
-    const blob = new Blob([exportedCode], { type: 'text/plain;charset=utf-8' });
+    const mime =
+      project.framework === 'html-css'
+        ? 'text/html;charset=utf-8'
+        : project.framework === 'javafx'
+          ? 'text/x-java-source;charset=utf-8'
+          : 'text/plain;charset=utf-8';
+    const blob = new Blob([exportedCode], { type: mime });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `${exportFileStem(project)}.${extension}`;
+    anchor.download = exportName;
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -471,6 +485,13 @@ export function Builder({ onHome }: { onHome: () => void }) {
               </>
             ) : null}
             <span className="toolbar-divider" aria-hidden="true" />
+            <span className="toolbar-divider" aria-hidden="true" />
+            <ToolButton
+              label={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
+              onClick={toggleTheme}
+            >
+              {isDarkTheme ? <Sun size={16} /> : <Moon size={16} />}
+            </ToolButton>
             <span className={`save-status ${saveStatus}`} role="status">
               {saveStatus === 'saved' ? (
                 <>
@@ -556,8 +577,8 @@ export function Builder({ onHome }: { onHome: () => void }) {
         <section className="export-section">
           <div className="panel-heading">
             <h2>Export</h2>
-            <span className="component-name" title="Exported component name">
-              {exportComponentName(project)}
+            <span className="component-name" title="Exported file name">
+              {exportName}
             </span>
           </div>
           <div className="framework-grid">
@@ -573,6 +594,21 @@ export function Builder({ onHome }: { onHome: () => void }) {
               </button>
             ))}
           </div>
+          {project.framework === 'react' ? (
+            <div className="framework-grid flavor-grid" role="group" aria-label="React file format">
+              {(['jsx', 'tsx'] as const).map((flavor) => (
+                <button
+                  aria-pressed={reactFlavor === flavor}
+                  className={reactFlavor === flavor ? 'active' : ''}
+                  key={flavor}
+                  onClick={() => setReactFlavor(flavor)}
+                  type="button"
+                >
+                  .{flavor}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="code-actions">
             <button onClick={copyCode} type="button">
               {copied ? <Check size={16} /> : <Clipboard size={16} />} {copied ? 'Copied' : 'Copy'}

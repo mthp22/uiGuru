@@ -13,8 +13,6 @@ export const frameworks: { id: Framework; label: string }[] = [
   { id: 'vue', label: 'Vue' },
   { id: 'angular', label: 'Angular' },
   { id: 'javafx', label: 'JavaFX' },
-  { id: 'bootstrap', label: 'Bootstrap' },
-  { id: 'tailwind', label: 'Tailwind' },
   { id: 'html-css', label: 'HTML/CSS' },
 ];
 
@@ -26,6 +24,8 @@ export const elementPalette: { kind: ElementKind; label: string; description: st
   { kind: 'image', label: 'Image', description: 'Remote image block with object fit.' },
   { kind: 'button', label: 'Button', description: 'Primary or secondary action.' },
   { kind: 'badge-list', label: 'Badges', description: 'Inline labels and status chips.' },
+  { kind: 'input', label: 'Input field', description: 'Single-line text field with placeholder.' },
+  { kind: 'textarea', label: 'Textarea', description: 'Multi-line field for messages.' },
 ];
 
 export const presetProjects = [
@@ -111,6 +111,18 @@ const defaultsByKind: Record<ElementKind, Partial<CanvasElement>> = {
     frame: { x: 120, y: 300, width: 320, height: 70 },
     style: { ...baseStyle, background: 'transparent', borderColor: 'transparent', shadow: 0, padding: 4 },
     content: { ...baseContent, title: '', body: '', items: ['Beta', 'Responsive', 'Live export'] },
+  },
+  input: {
+    name: 'Input',
+    frame: { x: 120, y: 200, width: 360, height: 48 },
+    style: { ...baseStyle, background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', shadow: 0, padding: 12 },
+    content: { ...baseContent, title: '', body: 'you@example.com' },
+  },
+  textarea: {
+    name: 'Textarea',
+    frame: { x: 120, y: 264, width: 360, height: 120 },
+    style: { ...baseStyle, background: '#f8fafc', borderColor: '#cbd5e1', color: '#64748b', shadow: 0, padding: 12 },
+    content: { ...baseContent, title: '', body: 'How can we help?' },
   },
 };
 
@@ -261,8 +273,8 @@ export function createComponentElements(id: ComponentId, origin: { x: number; y:
         place('section', 0, 0, 420, 424, { title: '', body: '' }, { background: '#ffffff', borderColor: '#e2e8f0', shadow: 12, padding: 0 }),
         place('heading', 32, 32, 340, 46, { title: 'Welcome back' }, { fontSize: 28, padding: 0 }),
         place('text', 32, 86, 340, 34, { body: 'Sign in to continue building.' }, { color: '#64748b', padding: 0 }),
-        place('text', 32, 140, 356, 46, { body: 'you@example.com' }, fieldStyle),
-        place('text', 32, 202, 356, 46, { body: '••••••••' }, fieldStyle),
+        place('input', 32, 140, 356, 46, { body: 'you@example.com' }, fieldStyle),
+        place('input', 32, 202, 356, 46, { body: 'Password' }, fieldStyle),
         place('text', 32, 262, 356, 28, { body: 'Forgot password?' }, { color: '#2563eb', fontSize: 13, fontWeight: 700, padding: 0 }),
         place('button', 32, 306, 356, 48, { actionLabel: 'Sign in' }),
         place('text', 32, 370, 356, 30, { body: 'No account yet? Create one' }, { color: '#64748b', fontSize: 13, padding: 0 }),
@@ -272,9 +284,9 @@ export function createComponentElements(id: ComponentId, origin: { x: number; y:
         place('section', 0, 0, 560, 470, { title: '', body: '' }, { background: '#ffffff', borderColor: '#e2e8f0', shadow: 12, padding: 0 }),
         place('heading', 36, 36, 420, 46, { title: 'Contact us' }, { fontSize: 30, padding: 0 }),
         place('text', 36, 92, 480, 34, { body: 'We usually reply within one business day.' }, { color: '#64748b', padding: 0 }),
-        place('text', 36, 146, 488, 46, { body: 'Name' }, fieldStyle),
-        place('text', 36, 206, 488, 46, { body: 'Email' }, fieldStyle),
-        place('text', 36, 266, 488, 104, { body: 'How can we help?' }, fieldStyle),
+        place('input', 36, 146, 488, 46, { body: 'Name' }, fieldStyle),
+        place('input', 36, 206, 488, 46, { body: 'Email' }, fieldStyle),
+        place('textarea', 36, 266, 488, 104, { body: 'How can we help?' }, fieldStyle),
         place('button', 36, 390, 176, 48, { actionLabel: 'Send message' }),
       ];
     case 'testimonial':

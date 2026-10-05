@@ -78,6 +78,12 @@ function ElementPreview({ element }: { element: CanvasElement }) {
   if (element.kind === 'text') return <p>{c.body}</p>;
   if (element.kind === 'image') return <img alt={c.altText} className="block-image" src={c.imageUrl} />;
   if (element.kind === 'button') return <button className="rendered-button" type="button">{c.actionLabel}</button>;
+  if (element.kind === 'input') {
+    return <input className="rendered-field" placeholder={c.body} readOnly tabIndex={-1} type="text" />;
+  }
+  if (element.kind === 'textarea') {
+    return <textarea className="rendered-field" placeholder={c.body} readOnly rows={3} tabIndex={-1} />;
+  }
   if (element.kind === 'badge-list') {
     return <div className="rendered-badges">{c.items.map((item) => <span key={item}>{item}</span>)}</div>;
   }

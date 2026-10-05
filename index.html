@@ -3,9 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="uiGuru — build UI visually and ship real code. Drag, drop, customize, and export production-ready interfaces to React, Vue, Angular, JavaFX, Bootstrap, Tailwind, or HTML/CSS." />
+    <meta name="description" content="uiGuru — build UI visually and ship real code. Drag, drop, customize, and export production-ready interfaces as real framework files: React (.jsx/.tsx), Vue, Angular, JavaFX, or HTML/CSS." />
     <meta name="theme-color" content="#2563eb" />
     <title>uiGuru — Build UI visually. Ship real code.</title>
+    <script>
+      
+      (function () {
+        try {
+          var stored = localStorage.getItem('uiguru:theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.dataset.theme = theme;
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

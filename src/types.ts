@@ -1,6 +1,16 @@
-export type Framework = 'react' | 'vue' | 'angular' | 'javafx' | 'bootstrap' | 'tailwind' | 'html-css';
+export type Framework = 'react' | 'vue' | 'angular' | 'javafx' | 'html-css';
+export type ReactFlavor = 'jsx' | 'tsx';
 export type PreviewSize = 'desktop' | 'tablet' | 'mobile';
-export type ElementKind = 'section' | 'card' | 'heading' | 'text' | 'image' | 'button' | 'badge-list';
+export type ElementKind =
+  | 'section'
+  | 'card'
+  | 'heading'
+  | 'text'
+  | 'image'
+  | 'button'
+  | 'badge-list'
+  | 'input'
+  | 'textarea';
 export type ComponentId =
   | 'navbar'
   | 'hero'
