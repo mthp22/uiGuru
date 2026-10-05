@@ -1,5 +1,5 @@
 import { clampFrameToCanvas, moveFrame, resizeFrame } from './geometry';
-import type { CanvasElement, CanvasElementFrame, CanvasProject, ResizeHandle } from './types';
+import type { CanvasElement, CanvasElementFrame, CanvasProject, Framework, ResizeHandle } from './types';
 
 const cloneOffset = 28;
 
@@ -106,9 +106,19 @@ export function resizeElement(
   );
 }
 
+const validFrameworks: Framework[] = ['react', 'vue', 'angular', 'javafx', 'html-css'];
+
+function migrateFramework(framework: unknown): Framework {
+  if (typeof framework !== 'string') return 'react';
+
+  if (framework === 'bootstrap' || framework === 'tailwind') return 'html-css';
+  return (validFrameworks as string[]).includes(framework) ? (framework as Framework) : 'react';
+}
+
 export function normalizeProject(project: CanvasProject): CanvasProject {
   return {
     ...project,
+    framework: migrateFramework(project.framework),
     elements: project.elements.map((element) => ({
       ...element,
       defaultFrame: element.defaultFrame ?? { ...element.frame },

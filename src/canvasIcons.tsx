@@ -1,4 +1,5 @@
 import {
+  AlignLeft,
   CreditCard,
   Image,
   LayoutGrid,
@@ -11,6 +12,7 @@ import {
   PanelBottom,
   Sparkles,
   Square,
+  TextCursorInput,
   Type,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -24,6 +26,8 @@ export const iconByKind: Record<ElementKind, ReactNode> = {
   image: <Image size={17} />,
   button: <MousePointer2 size={17} />,
   'badge-list': <Layers size={17} />,
+  input: <TextCursorInput size={17} />,
+  textarea: <AlignLeft size={17} />,
 };
 
 export const componentIcon: Record<ComponentId, ReactNode> = {
