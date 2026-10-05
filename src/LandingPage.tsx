@@ -4,11 +4,14 @@ import {
   Code2,
   FileCode2,
   MonitorSmartphone,
+  Moon,
   MousePointerClick,
   Save,
   SlidersHorizontal,
+  Sun,
   Undo2,
 } from 'lucide-react';
+import { MotionConfig, motion, type Variants } from 'framer-motion';
 import { frameworks } from './data';
 
 const codeSample = `export function HeroSection() {
