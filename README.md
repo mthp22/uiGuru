@@ -5,7 +5,7 @@
 
 A low-code UI builder for creating interfaces visually and exporting them as real, production-ready code.
 
-Drag blocks onto a canvas, customize them with a visual inspector, preview responsive layouts, and export your design to **React, Vue, Angular, JavaFX, Bootstrap, Tailwind, or plain HTML/CSS**.
+Drag blocks onto a canvas, customize them with a visual inspector, preview responsive layouts, and export your design as real framework files: **React (.jsx/.tsx), Vue, Angular, JavaFX, or plain HTML/CSS**.
 
 ---
 
@@ -78,13 +78,11 @@ Preview your interface across different viewport sizes:
 
  | Target | Output |
 | --- | --- |
-| React | React components |
-| Vue | Vue components |
-| Angular | Angular templates/components |
-| JavaFX | JavaFX UI code |
-| Bootstrap | Bootstrap HTML |
-| Tailwind | Tailwind HTML |
-| HTML/CSS | Plain HTML and CSS |
+| React | `Component.jsx` / `Component.tsx` |
+| Vue | `Component.vue` |
+| Angular | `file-stem.component.ts` |
+| JavaFX | `Component.java` |
+| HTML/CSS | `index.html` |
 
 
  ## Tech Stack
@@ -205,8 +203,6 @@ src/
 │   ├── vue/
 │   ├── angular/
 │   ├── javafx/
-│   ├── bootstrap/
-│   ├── tailwind/
 │   └── html/
 └── ...
 ```
@@ -236,13 +232,9 @@ src/
             │             │             │
             └─────────────┼─────────────┘
                           │
-             ┌────────────┼────────────┐
-             │            │            │
-             ▼            ▼            ▼
-          JavaFX      Bootstrap     Tailwind
-                          │
-                          ▼
-                       HTML/CSS
+                          ├──────────────┐
+                          ▼              ▼
+                        JavaFX        HTML/CSS
 ```
 
  The editor works with a structured representation of the interface, while exporters transform that representation into the selected target technology.
