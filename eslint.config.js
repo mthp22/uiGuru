@@ -19,4 +19,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['apps/mobile/**/*.{ts,tsx}'],
+    rules: {
+      // React Compiler's immutability rule cannot tell Reanimated shared values
+      // (intentionally mutable UI-thread state) apart from frozen React values.
+      'react-hooks/immutability': 'off',
+    },
+  },
 ])
