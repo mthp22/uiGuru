@@ -12,7 +12,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { MotionConfig, motion, type Variants } from 'framer-motion';
-import { frameworks } from './data';
+import { frameworks } from '@uiguru/core';
 import { useTheme } from './useTheme';
 
 const heroStagger: Variants = {

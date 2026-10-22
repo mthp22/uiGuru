@@ -1,6 +1,6 @@
 import { Copy, Lock, Trash2, Unlock } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { CanvasElement, CanvasElementContent, ElementKind } from './types';
+import type { CanvasElement, CanvasElementContent, ElementKind } from '@uiguru/core';
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

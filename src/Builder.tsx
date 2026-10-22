@@ -31,33 +31,37 @@ import {
 } from 'lucide-react';
 import {
   bringElementForward,
-  duplicateElement,
-  normalizeProject,
-  removeElement,
-  resetElementSize,
-  sendElementBackward,
-  toggleElementLock,
-  updateElement,
-} from './canvasCommands';
-import { CanvasBlock, ContextMenu, LayerTree, type ContextMenuAction } from './CanvasElements';
-import { componentIcon, iconByKind } from './canvasIcons';
-import {
+  clamp,
   componentPalette,
   createElement,
   createComponentElements,
   createEmptyProject,
   createPresetProject,
+  duplicateElement,
   elementPalette,
+  exportFileName,
+  exportProject,
   frameworks,
+  normalizeProject,
   presetProjects,
-} from './data';
-import { exportFileName, exportProject } from './exporters';
+  removeElement,
+  resetElementSize,
+  sendElementBackward,
+  toggleElementLock,
+  updateElement,
+  useHistory,
+  type CanvasElement,
+  type CanvasProject,
+  type ComponentId,
+  type ElementKind,
+  type PreviewSize,
+  type ReactFlavor,
+} from '@uiguru/core';
+import { CanvasBlock, ContextMenu, LayerTree, type ContextMenuAction } from './CanvasElements';
+import { componentIcon, iconByKind } from './canvasIcons';
 import { Field, Inspector } from './Inspector';
-import { clamp } from './geometry';
 import { marqueeStyle, useCanvasInteractions } from './useCanvasInteractions';
-import { useHistory } from './useHistory';
 import { useTheme } from './useTheme';
-import type { CanvasElement, CanvasProject, ComponentId, ElementKind, PreviewSize, ReactFlavor} from './types';
 
 const savedProjectsKey = 'uiguru:canvas-projects';
 const currentProjectKey = 'uiguru:current-project';

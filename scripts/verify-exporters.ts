@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import { exportProject, exportFileName } from '../src/exporters';
+import { exportProject, exportFileName } from '@uiguru/core';
 import { createEmptyProject, createElement, createComponentElements } from '../src/data';
 import { writeFileSync, mkdirSync } from 'node:fs';
 

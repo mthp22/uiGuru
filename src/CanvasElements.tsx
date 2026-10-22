@@ -9,8 +9,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { iconByKind } from './canvasIcons';
-import { buildLayerTree, type LayerNode } from './geometry';
-import type { CanvasElement, ResizeHandle } from './types';
+import { buildLayerTree, type LayerNode, type ResizeHandle, type CanvasElement } from '@uiguru/core';
 
 export type ContextMenuAction = 'remove' | 'duplicate' | 'reset-size' | 'toggle-lock' | 'bring-forward' | 'send-backward';
 

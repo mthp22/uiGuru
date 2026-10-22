@@ -16,7 +16,7 @@ import {
   Type,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { ComponentId, ElementKind } from './types';
+import type { ComponentId, ElementKind } from '@uiguru/core';
 
 export const iconByKind: Record<ElementKind, ReactNode> = {
   section: <Layers size={17} />,
