@@ -20,6 +20,14 @@ export default function HomeScreen() {
           <Text style={styles.primaryLabel}>New canvas</Text>
         </Pressable>
 
+        <Pressable
+          accessibilityRole="button"
+          style={styles.secondaryButton}
+          onPress={() => router.push('/projects')}
+        >
+          <Text style={styles.secondaryLabel}>My projects</Text>
+        </Pressable>
+
         <Text style={styles.sectionLabel}>Start from a template</Text>
         {presetProjects.map((preset) => (
           <Pressable
@@ -53,6 +61,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryLabel: { color: '#ffffff', fontSize: 17, fontWeight: '700' },
+  secondaryButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  secondaryLabel: { color: '#334155', fontSize: 15, fontWeight: '600' },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',

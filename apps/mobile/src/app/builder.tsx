@@ -1,22 +1,33 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  createHttpUiguruApi,
   createPresetProject,
+  createProjectStorage,
   presetProjects,
   useEditor,
+  useProjectPersistence,
+  useProjectSync,
+  type ProjectPersistence,
 } from '@uiguru/core';
 import BuilderViewport from '../../components/builder/BuilderViewport';
+import ExportSheet from '../../components/builder/ExportSheet';
 import InspectorSheet from '../../components/builder/InspectorSheet';
 import LayersSheet from '../../components/builder/LayersSheet';
 import PaletteSheet from '../../components/builder/PaletteSheet';
 
 const presetIds = presetProjects.map((preset) => preset.id);
-type Sheet = 'palette' | 'layers' | 'inspect' | null;
+type Sheet = 'palette' | 'layers' | 'inspect' | 'export' | null;
 
 export default function BuilderScreen() {
-  const { preset } = useLocalSearchParams<{ preset?: string }>();
+  const { preset, projectId, sheet: initialSheet } = useLocalSearchParams<{
+    preset?: string;
+    projectId?: string;
+    sheet?: string;
+  }>();
   const editor = useEditor({
     initialPreviewSize: 'mobile',
     initialProject: () =>
@@ -24,10 +35,37 @@ export default function BuilderScreen() {
         ? createPresetProject(preset as (typeof presetIds)[number])
         : null,
   });
-  const [sheet, setSheet] = useState<Sheet>(null);
+
+  // Local-first persistence: restores the project (requested id, else the
+  // last-opened one) and autosaves engine changes through the commit seam.
+  const storage = useMemo(() => createProjectStorage(AsyncStorage), []);
+  const persistence = useProjectPersistence(editor, storage, { projectId });
+
+  // Remote sync replica — active only when a backend URL is configured.
+  const api = useMemo(() => {
+    const baseUrl = process.env.EXPO_PUBLIC_API_URL;
+    return baseUrl ? createHttpUiguruApi({ baseUrl }) : null;
+  }, []);
+  useProjectSync(editor, api);
+
+  const [sheet, setSheet] = useState<Sheet>(initialSheet === 'export' ? 'export' : null);
   const [marqueeMode, setMarqueeMode] = useState(false);
 
   const closeSheet = useCallback(() => setSheet(null), []);
+
+  const rename = () => {
+    if (typeof Alert.prompt !== 'function') return;
+    Alert.prompt(
+      'Rename project',
+      undefined,
+      (name?: string) => {
+        const trimmed = name?.trim();
+        if (trimmed) editor.updateProject({ name: trimmed });
+      },
+      undefined,
+      editor.project.name,
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -35,7 +73,7 @@ export default function BuilderScreen() {
         <Pressable accessibilityLabel="Back" style={styles.barButton} onPress={() => router.back()}>
           <Text style={styles.barButtonLabel}>‹</Text>
         </Pressable>
-        <View style={styles.headingGroup}>
+        <Pressable accessibilityLabel="Rename project" style={styles.headingGroup} onPress={rename}>
           <Text numberOfLines={1} style={styles.title}>
             {editor.project.name}
           </Text>
@@ -43,8 +81,10 @@ export default function BuilderScreen() {
             {editor.project.elements.length === 0
               ? 'Empty playground'
               : `${editor.project.elements.length} blocks`}
+            {' · '}
+            {saveLabel(persistence)}
           </Text>
-        </View>
+        </Pressable>
         <Pressable
           accessibilityLabel="Undo"
           disabled={!editor.canUndo}
@@ -60,6 +100,13 @@ export default function BuilderScreen() {
           onPress={editor.redo}
         >
           <Text style={[styles.barButtonLabel, !editor.canRedo && styles.disabled]}>↷</Text>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Export code"
+          style={styles.exportButton}
+          onPress={() => setSheet('export')}
+        >
+          <Text style={styles.exportLabel}>Export</Text>
         </Pressable>
       </View>
 
@@ -85,8 +132,24 @@ export default function BuilderScreen() {
       <PaletteSheet editor={editor} visible={sheet === 'palette'} onClose={closeSheet} />
       <LayersSheet editor={editor} visible={sheet === 'layers'} onClose={closeSheet} />
       <InspectorSheet editor={editor} visible={sheet === 'inspect'} onClose={closeSheet} />
+      <ExportSheet editor={editor} visible={sheet === 'export'} onClose={closeSheet} />
     </SafeAreaView>
   );
+}
+
+function saveLabel(persistence: ProjectPersistence): string {
+  switch (persistence.status) {
+    case 'loading':
+      return 'Loading…';
+    case 'saving':
+      return 'Saving…';
+    case 'saved':
+      return 'Saved';
+    case 'error':
+      return 'Not saved';
+    default:
+      return 'Local only';
+  }
 }
 
 function BottomAction({
@@ -143,6 +206,15 @@ const styles = StyleSheet.create({
   },
   barButtonLabel: { fontSize: 20, color: '#334155', fontWeight: '600' },
   disabled: { color: '#cbd5e1' },
+  exportButton: {
+    paddingHorizontal: 10,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: '#2563eb',
+  },
+  exportLabel: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
   headingGroup: { flex: 1, paddingHorizontal: 4 },
   title: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
   subtitle: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
