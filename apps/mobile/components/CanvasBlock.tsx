@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { clamp } from '@uiguru/core';
 
 export type Block = {
   id: string;
@@ -23,9 +24,6 @@ type Props = {
 
 const MIN_WIDTH = 96;
 const MIN_HEIGHT = 72;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), Math.max(min, max));
 
 
 export default function CanvasBlock({ block, selected, canvas, onSelect, onCommit, onContextMenu }: Props) {
@@ -61,8 +59,8 @@ export default function CanvasBlock({ block, selected, canvas, onSelect, onCommi
       runOnJS(selectBlock)();
     })
     .onChange((event) => {
-      x.value = clamp(x.value + event.changeX, 0, canvas.width - w.value);
-      y.value = clamp(y.value + event.changeY, 0, canvas.height - h.value);
+      x.value = clamp(x.value + event.changeX, 0, Math.max(0, canvas.width - w.value));
+      y.value = clamp(y.value + event.changeY, 0, Math.max(0, canvas.height - h.value));
     })
     .onEnd(() => {
       runOnJS(commitPosition)();
@@ -85,8 +83,8 @@ export default function CanvasBlock({ block, selected, canvas, onSelect, onCommi
       runOnJS(selectBlock)();
     })
     .onChange((event) => {
-      w.value = clamp(w.value + event.changeX, MIN_WIDTH, canvas.width - x.value);
-      h.value = clamp(h.value + event.changeY, MIN_HEIGHT, canvas.height - y.value);
+      w.value = clamp(w.value + event.changeX, MIN_WIDTH, Math.max(MIN_WIDTH, canvas.width - x.value));
+      h.value = clamp(h.value + event.changeY, MIN_HEIGHT, Math.max(MIN_HEIGHT, canvas.height - y.value));
     })
     .onEnd(() => {
       runOnJS(commitSize)();

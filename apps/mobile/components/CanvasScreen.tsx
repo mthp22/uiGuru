@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { clamp } from '@uiguru/core';
 import CanvasBlock, { type Block } from './CanvasBlock';
 
 type MenuState = { id: string; x: number; y: number };
@@ -13,9 +14,6 @@ const MENU_WIDTH = 168;
 const MENU_HEIGHT = 200;
 
 let nextId = 2;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), Math.max(min, max));
 
 const initialBlocks: Block[] = [
   { id: '1', label: 'Hero section', x: 48, y: 96, width: DEFAULT_SIZE.width, height: DEFAULT_SIZE.height },
