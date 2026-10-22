@@ -16,3 +16,6 @@ export * from './canvasCommands';
 export * from './data';
 export * from './exporters';
 export * from './useHistory';
+export * from './id';
+export * from './editor';
+export * from './inspector';
