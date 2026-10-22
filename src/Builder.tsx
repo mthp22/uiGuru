@@ -30,31 +30,19 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import {
-  bringElementForward,
-  clamp,
   componentPalette,
-  createElement,
-  createComponentElements,
-  createEmptyProject,
   createPresetProject,
-  duplicateElement,
   elementPalette,
   exportFileName,
   exportProject,
   frameworks,
   normalizeProject,
   presetProjects,
-  removeElement,
-  resetElementSize,
-  sendElementBackward,
-  toggleElementLock,
-  updateElement,
-  useHistory,
+  previewWidths,
+  useEditor,
   type CanvasElement,
   type CanvasProject,
-  type ComponentId,
   type ElementKind,
-  type PreviewSize,
   type ReactFlavor,
 } from '@uiguru/core';
 import { CanvasBlock, ContextMenu, LayerTree, type ContextMenuAction } from './CanvasElements';
@@ -66,12 +54,6 @@ import { useTheme } from './useTheme';
 const savedProjectsKey = 'uiguru:canvas-projects';
 const currentProjectKey = 'uiguru:current-project';
 const dragMime = 'application/uiguru-element-kind';
-
-const previewWidth: Record<PreviewSize, number> = {
-  desktop: 1200,
-  tablet: 768,
-  mobile: 390,
-};
 
 function readProjects(): CanvasProject[] {
   try {
@@ -120,13 +102,10 @@ function ToolButton({
 }
 
 export function Builder({ onHome }: { onHome: () => void }) {
-  const history = useHistory<CanvasProject>(() => readCurrentProject() ?? createEmptyProject());
-  const { present: project, commit, stage, endStage, undo, redo, canUndo, canRedo } = history;
+  const editor = useEditor({ initialProject: readCurrentProject });
+  const { project, selectedId, setSelectedId, previewSize, setPreviewSize, zoom } = editor;
   const [savedProjects, setSavedProjects] = useState<CanvasProject[]>(readProjects);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [previewSize, setPreviewSize] = useState<PreviewSize>('desktop');
-  const [zoom, setZoom] = useState(1);
-  const [savedProject, setSavedProject] = useState<CanvasProject>(() => history.present);
+  const [savedProject, setSavedProject] = useState<CanvasProject>(() => project);
   const [copied, setCopied] = useState(false);
   const [reactFlavor, setReactFlavor] = useState<ReactFlavor>('tsx');
   const { theme, toggleTheme } = useTheme();
@@ -136,27 +115,13 @@ export function Builder({ onHome }: { onHome: () => void }) {
     () => exportProject(project, project.framework, reactFlavor),
     [project, reactFlavor],
   );
-  const exportName = exportFileName(project, project.framework, reactFlavor);  const selected = project.elements.find((element) => element.id === selectedId) ?? null;
-  const previewScale = Math.min(1, previewWidth[previewSize] / project.canvas.width) * zoom;
-
-  function commitProject(recipe: (current: CanvasProject) => CanvasProject, groupKey?: string) {
-    commit((current) => {
-      const next = recipe(current);
-      return next === current ? current : { ...next, updatedAt: new Date().toISOString() };
-    }, groupKey);
-  }
+  const exportName = exportFileName(project, project.framework, reactFlavor);  const selected = editor.selected;
+  const previewScale = Math.min(1, previewWidths[previewSize] / project.canvas.width) * zoom;
 
   const interactions = useCanvasInteractions({
     canvasRef,
-    project,
+    editor,
     scale: previewScale,
-    selectedId,
-    setProject: stage,
-    commitProject,
-    endStage,
-    undo,
-    redo,
-    setSelectedId,
   });
 
   const saveStatus: 'saving' | 'saved' = savedProject === project ? 'saved' : 'saving';
@@ -178,34 +143,12 @@ export function Builder({ onHome }: { onHome: () => void }) {
   }, [savedProjects]);
 
   const updateProject = (patch: Partial<CanvasProject>, groupKey?: string) => {
-    commitProject((current) => ({ ...current, ...patch }), groupKey);
+    editor.updateProject(patch, groupKey);
   };
 
   const updateSelected = (recipe: (element: CanvasElement) => CanvasElement, groupKey?: string) => {
     if (!selectedId) return;
-    commitProject((current) => updateElement(current, selectedId, recipe), groupKey && `${selectedId}:${groupKey}`);
-  };
-
-  const addElement = (kind: ElementKind, position?: { x: number; y: number }) => {
-    const element = createElement(kind, position);
-    commitProject((current) => ({ ...current, elements: [...current.elements, element] }));
-    setSelectedId(element.id);
-  };
-
-  const addComponent = (id: ComponentId) => {
-    const lowest = project.elements.reduce(
-      (max, element) => Math.max(max, element.frame.y + element.frame.height),
-      0,
-    );
-    const origin = { x: 48, y: lowest > 0 ? lowest + 40 : 48 };
-    const elements = createComponentElements(id, origin);
-    const bottom = elements.reduce((max, element) => Math.max(max, element.frame.y + element.frame.height), 0);
-    commitProject((current) => ({
-      ...current,
-      elements: [...current.elements, ...elements],
-      canvas: { ...current.canvas, height: Math.max(current.canvas.height, bottom + 48) },
-    }));
-    setSelectedId(elements[0]?.id ?? null);
+    editor.updateElementField(selectedId, recipe, groupKey);
   };
 
   const dropElement = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -213,7 +156,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
     const kind = event.dataTransfer.getData(dragMime) as ElementKind;
     if (!kind || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    addElement(kind, {
+    editor.insertKind(kind, {
       x: Math.max(0, Math.round((event.clientX - rect.left) / previewScale)),
       y: Math.max(0, Math.round((event.clientY - rect.top) / previewScale)),
     });
@@ -265,44 +208,27 @@ export function Builder({ onHome }: { onHome: () => void }) {
 
   const duplicateSelected = () => {
     if (!selectedId) return;
-    const cloneId = crypto.randomUUID();
-    commitProject((current) => duplicateElement(current, selectedId, cloneId));
-    setSelectedId(cloneId);
+    editor.runCommand('duplicate');
   };
 
   const removeSelected = () => {
     if (!selectedId) return;
-    commitProject((current) => removeElement(current, selectedId));
-    setSelectedId(null);
-    interactions.closeContextMenu();
+    editor.runCommand('remove');
   };
 
   const resetSelectedSize = () => {
     if (!selectedId) return;
-    commitProject((current) => resetElementSize(current, selectedId), `size:${selectedId}`);
+    editor.runCommand('reset-size');
   };
 
   const changeZoom = (delta: number) => {
-    setZoom((current) => clamp(Math.round((current + delta) * 10) / 10, 0.4, 2));
+    editor.changeZoom(delta);
   };
 
   const runContextAction = (action: ContextMenuAction) => {
     const elementId = interactions.contextMenu?.elementId;
     if (!elementId) return;
-    if (action === 'remove') {
-      commitProject((current) => removeElement(current, elementId));
-      setSelectedId(null);
-    }
-    if (action === 'duplicate') {
-      const cloneId = crypto.randomUUID();
-      commitProject((current) => duplicateElement(current, elementId, cloneId));
-      setSelectedId(cloneId);
-    }
-    if (action === 'reset-size') commitProject((current) => resetElementSize(current, elementId));
-    if (action === 'toggle-lock') commitProject((current) => toggleElementLock(current, elementId));
-    if (action === 'bring-forward') commitProject((current) => bringElementForward(current, elementId));
-    if (action === 'send-backward') commitProject((current) => sendElementBackward(current, elementId));
-    interactions.closeContextMenu();
+    editor.runCommand(action, elementId);
   };
 
   return (
@@ -323,7 +249,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
               <button
                 draggable
                 key={item.kind}
-                onClick={() => addElement(item.kind)}
+                onClick={() => editor.insertKind(item.kind)}
                 onDragStart={(event) => event.dataTransfer.setData(dragMime, item.kind)}
                 title={item.description}
                 type="button"
@@ -339,7 +265,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
           <h2>Components</h2>
           <div className="palette-list compact">
             {componentPalette.map((item) => (
-              <button key={item.id} onClick={() => addComponent(item.id)} title={item.description} type="button">
+              <button key={item.id} onClick={() => editor.insertComponent(item.id)} title={item.description} type="button">
                 {componentIcon[item.id]}
                 <span>{item.label}</span>
               </button>
@@ -362,11 +288,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
             {presetProjects.map((preset) => (
               <button
                 key={preset.id}
-                onClick={() => {
-                  const next = createPresetProject(preset.id);
-                  commitProject(() => next);
-                  setSelectedId(next.elements[0]?.id ?? null);
-                }}
+                onClick={() => editor.loadProject(createPresetProject(preset.id))}
                 type="button"
               >
                 {preset.label}
@@ -390,7 +312,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
                 type="number"
                 value={project.canvas.width}
                 onChange={(event) =>
-                  commitProject(
+                  editor.commit(
                     (current) => ({ ...current, canvas: { ...current.canvas, width: Number(event.target.value) } }),
                     'canvas-width',
                   )
@@ -403,7 +325,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
                 type="number"
                 value={project.canvas.height}
                 onChange={(event) =>
-                  commitProject(
+                  editor.commit(
                     (current) => ({ ...current, canvas: { ...current.canvas, height: Number(event.target.value) } }),
                     'canvas-height',
                   )
@@ -417,7 +339,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
               type="color"
               value={project.canvas.background}
               onChange={(event) =>
-                commitProject(
+                editor.commit(
                   (current) => ({ ...current, canvas: { ...current.canvas, background: event.target.value } }),
                   'canvas-background',
                 )
@@ -426,10 +348,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
           </Field>
           <button
             className="wide-action"
-            onClick={() => {
-              commitProject(() => createEmptyProject());
-              setSelectedId(null);
-            }}
+            onClick={() => editor.loadEmpty()}
             type="button"
           >
             Empty playground
@@ -444,10 +363,10 @@ export function Builder({ onHome }: { onHome: () => void }) {
             <span>{project.elements.length === 0 ? 'Empty playground' : `${project.elements.length} configurable blocks`}</span>
           </div>
           <div className="toolbar-actions">
-            <ToolButton disabled={!canUndo} label="Undo (Cmd/Ctrl + Z)" onClick={undo}>
+            <ToolButton disabled={!editor.canUndo} label="Undo (Cmd/Ctrl + Z)" onClick={editor.undo}>
               <Undo2 size={16} />
             </ToolButton>
-            <ToolButton disabled={!canRedo} label="Redo (Cmd/Ctrl + Shift + Z)" onClick={redo}>
+            <ToolButton disabled={!editor.canRedo} label="Redo (Cmd/Ctrl + Shift + Z)" onClick={editor.redo}>
               <Redo2 size={16} />
             </ToolButton>
             <span className="toolbar-divider" aria-hidden="true" />
@@ -633,11 +552,7 @@ export function Builder({ onHome }: { onHome: () => void }) {
             {savedProjects.map((item) => (
               <button
                 key={item.id}
-                onClick={() => {
-                  const next = normalizeProject(item);
-                  commitProject(() => next);
-                  setSelectedId(next.elements[0]?.id ?? null);
-                }}
+                onClick={() => editor.loadProject(normalizeProject(item))}
                 type="button"
               >
                 <Eye size={14} />

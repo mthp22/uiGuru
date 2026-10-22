@@ -1,6 +1,12 @@
 import { Copy, Lock, Trash2, Unlock } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { CanvasElement, CanvasElementContent, ElementKind } from '@uiguru/core';
+import {
+  accentKinds,
+  contentByKind,
+  fontFamilies,
+  textAlignOptions,
+  type CanvasElement,
+} from '@uiguru/core';
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -19,34 +25,6 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
     </details>
   );
 }
-
-const contentByKind: Record<ElementKind, { key: keyof CanvasElementContent; label: string; multiline?: boolean }[]> = {
-  heading: [{ key: 'title', label: 'Content' }],
-  text: [{ key: 'body', label: 'Content', multiline: true }],
-  image: [
-    { key: 'imageUrl', label: 'Image URL' },
-    { key: 'altText', label: 'Alt text' },
-  ],
-  button: [{ key: 'actionLabel', label: 'Label' }],
-  input: [{ key: 'body', label: 'Placeholder' }],
-  textarea: [{ key: 'body', label: 'Placeholder' }],
-  'badge-list': [{ key: 'items', label: 'Items', multiline: true }],
-  section: [
-    { key: 'title', label: 'Title' },
-    { key: 'body', label: 'Body', multiline: true },
-  ],
-  card: [
-    { key: 'subtitle', label: 'Eyebrow' },
-    { key: 'title', label: 'Title' },
-    { key: 'body', label: 'Body', multiline: true },
-    { key: 'imageUrl', label: 'Image URL' },
-    { key: 'altText', label: 'Alt text' },
-    { key: 'items', label: 'Items', multiline: true },
-    { key: 'actionLabel', label: 'Button label' },
-  ],
-};
-
-const accentKinds: ElementKind[] = ['button', 'card', 'badge-list', 'section'];
 
 export function Inspector({
   element,
@@ -127,11 +105,11 @@ export function Inspector({
               value={element.style.fontFamily}
               onChange={(event) => updateStyle('fontFamily', event.target.value)}
             >
-              <option value="Inter">Inter</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Arial">Arial</option>
-              <option value="Courier New">Courier New</option>
-              <option value="Trebuchet MS">Trebuchet MS</option>
+              {fontFamilies.map((family) => (
+                <option key={family} value={family}>
+                  {family}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label={`Size ${element.style.fontSize}px`}>
@@ -170,9 +148,11 @@ export function Inspector({
                 value={element.style.textAlign}
                 onChange={(event) => updateStyle('textAlign', event.target.value)}
               >
-                <option value="left">Left</option>
-                <option value="center">Center</option>
-                <option value="right">Right</option>
+                {textAlignOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </Field>
           </div>

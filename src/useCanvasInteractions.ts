@@ -1,104 +1,47 @@
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-  type RefObject,
-} from 'react';
-import {
-  alignmentTargets,
-  clampFrameToCanvas,
-  duplicateElement,
-  moveElement,
-  moveFrame,
-  normalizeSelectionRect,
-  removeElement,
-  resetElementSize,
-  resizeElement,
-  setElementFrame,
-  snapFrame,
-  topmostIntersecting,
-  type CanvasProject,
-  type ResizeHandle,
-  type SelectionRect,
-  type SnapGuides,
-} from '@uiguru/core';
+import { useEffect, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import type { EditorApi, ResizeHandle, SelectionRect } from '@uiguru/core';
 import { toCanvasPoint } from './toCanvasPoint';
 
-type InteractionMode =
-  | { type: 'idle' }
-  | { type: 'move'; elementId: string; start: { x: number; y: number } }
-  | { type: 'resize'; elementId: string; handle: ResizeHandle; start: { x: number; y: number } }
-  | { type: 'marquee'; start: { x: number; y: number }; current: { x: number; y: number } };
-
-export type ProjectUpdater = (recipe: (current: CanvasProject) => CanvasProject) => void;
-export type ProjectCommitter = (recipe: (current: CanvasProject) => CanvasProject, groupKey?: string) => void;
-
-export interface ContextMenuState {
-  x: number;
-  y: number;
-  elementId: string;
-}
-
+/**
+ * Web adapter over the shared editor engine (`useEditor` from @uiguru/core).
+ * Translates DOM pointer/keyboard events into canvas points and engine
+ * intents — no editor logic lives here.
+ */
 interface UseCanvasInteractionsArgs {
+  editor: EditorApi;
   canvasRef: RefObject<HTMLDivElement | null>;
-  project: CanvasProject;
   scale: number;
-  selectedId: string | null;
-  setProject: ProjectUpdater;
-  commitProject: ProjectCommitter;
-  endStage: () => void;
-  undo: () => void;
-  redo: () => void;
-  setSelectedId: (elementId: string | null) => void;
 }
 
-const noGuides: SnapGuides = { x: [], y: [] };
+export function useCanvasInteractions({ editor, canvasRef, scale }: UseCanvasInteractionsArgs) {
+  // Engine handlers are safe to call late (they read refs internally), so the
+  // window listeners below can subscribe once and use the latest editor.
+  const editorRef = useRef(editor);
+  const scaleRef = useRef(scale);
+  useEffect(() => {
+    editorRef.current = editor;
+    scaleRef.current = scale;
+  });
 
-export function useCanvasInteractions({
-  canvasRef,
-  project,
-  scale,
-  selectedId,
-  setProject,
-  commitProject,
-  endStage,
-  undo,
-  redo,
-  setSelectedId,
-}: UseCanvasInteractionsArgs) {
-  const [mode, setMode] = useState<InteractionMode>({ type: 'idle' });
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [guides, setGuides] = useState<SnapGuides>(noGuides);
-
-  const marquee =
-    mode.type === 'marquee' ? normalizeSelectionRect(mode.start, mode.current) : null;
-
-  const getPoint = useCallback((event: { clientX: number; clientY: number }) => {
-    if (!canvasRef.current) return null;
-    return toCanvasPoint(event, canvasRef.current, scale);
-  }, [canvasRef, scale]);
+  const getPoint = (event: { clientX: number; clientY: number }) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    return toCanvasPoint(event, canvas, scaleRef.current);
+  };
 
   const startMove = (elementId: string, event: ReactPointerEvent) => {
-    const element = project.elements.find((item) => item.id === elementId);
     const point = getPoint(event);
-    if (!element || !point || element.locked) return;
+    if (!point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setSelectedId(elementId);
-    setContextMenu(null);
-    setMode({ type: 'move', elementId, start: point });
+    editorRef.current.startMove(elementId, point);
   };
 
   const startResize = (elementId: string, handle: ResizeHandle, event: ReactPointerEvent) => {
-    const element = project.elements.find((item) => item.id === elementId);
     const point = getPoint(event);
-    if (!element || !point || element.locked) return;
+    if (!point) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setSelectedId(elementId);
-    setContextMenu(null);
-    setMode({ type: 'resize', elementId, handle, start: point });
+    editorRef.current.startResize(elementId, handle, point);
   };
 
   const startMarquee = (event: ReactPointerEvent) => {
@@ -106,63 +49,26 @@ export function useCanvasInteractions({
     const point = getPoint(event);
     if (!point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setSelectedId(null);
-    setContextMenu(null);
-    setMode({ type: 'marquee', start: point, current: point });
+    editorRef.current.startMarquee(point);
   };
 
   const openContextMenu = (elementId: string, event: ReactMouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setSelectedId(elementId);
-    setContextMenu({ x: event.clientX, y: event.clientY, elementId });
+    editorRef.current.openContextMenu(elementId, { x: event.clientX, y: event.clientY });
   };
-
-  const closeContextMenu = () => setContextMenu(null);
 
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
-      if (mode.type === 'idle') return;
+      if (editorRef.current.interaction.type === 'idle') return;
       const point = getPoint(event);
       if (!point) return;
-      const delta = { x: point.x - mode.start.x, y: point.y - mode.start.y };
-
-      if (mode.type === 'move') {
-        const element = project.elements.find((item) => item.id === mode.elementId);
-        if (element) {
-          const moved = moveFrame(element.frame, delta, project.canvas);
-          const targets = alignmentTargets(
-            project.elements.filter((item) => item.id !== mode.elementId),
-            project.canvas,
-          );
-          const snapped = snapFrame(moved, targets);
-          setGuides(snapped.guides);
-          setProject((current) =>
-            setElementFrame(current, mode.elementId, clampFrameToCanvas(snapped.frame, current.canvas)),
-          );
-        }
-        setMode({ ...mode, start: point });
-        return;
-      }
-
-      if (mode.type === 'resize') {
-        setProject((current) => resizeElement(current, mode.elementId, mode.handle, delta));
-        setMode({ ...mode, start: point });
-        return;
-      }
-
-      setMode({ ...mode, current: point });
+      editorRef.current.updateInteraction(point);
     };
 
     const handlePointerUp = () => {
-      if (mode.type === 'marquee') {
-        const rect = normalizeSelectionRect(mode.start, mode.current);
-        const hit = topmostIntersecting(project.elements, rect);
-        setSelectedId(hit?.id ?? null);
-      }
-      setGuides(noGuides);
-      endStage();
-      setMode({ type: 'idle' });
+      if (editorRef.current.interaction.type === 'idle') return;
+      editorRef.current.endInteraction();
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -171,68 +77,65 @@ export function useCanvasInteractions({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [endStage, getPoint, mode, project, setProject, setSelectedId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasRef]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '');
       if (isTyping) return;
+      const current = editorRef.current;
 
       if (event.key === 'Escape') {
-        setContextMenu(null);
-        setSelectedId(null);
+        current.closeContextMenu();
+        current.setSelectedId(null);
         return;
       }
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault();
-        if (event.shiftKey) redo();
-        else undo();
+        if (event.shiftKey) current.redo();
+        else current.undo();
         return;
       }
 
-      if (!selectedId) return;
+      if (!current.selectedId) return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
-        commitProject((current) => removeElement(current, selectedId));
-        setSelectedId(null);
-        setContextMenu(null);
+        current.runCommand('remove');
       }
 
       if (event.key.startsWith('Arrow')) {
         event.preventDefault();
         const step = event.shiftKey ? 10 : 1;
-        const delta = {
+        current.nudge({
           x: event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
           y: event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0,
-        };
-        commitProject((current) => moveElement(current, selectedId, delta), `nudge:${selectedId}`);
+        });
       }
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
         event.preventDefault();
-        const cloneId = crypto.randomUUID();
-        commitProject((current) => duplicateElement(current, selectedId, cloneId));
-        setSelectedId(cloneId);
+        current.runCommand('duplicate');
       }
 
       if ((event.metaKey || event.ctrlKey) && event.key === '0') {
         event.preventDefault();
-        commitProject((current) => resetElementSize(current, selectedId), `size:${selectedId}`);
+        current.runCommand('reset-size');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [commitProject, redo, selectedId, setSelectedId, undo]);
+  }, []);
 
   return {
-    closeContextMenu,
-    contextMenu,
-    guides,
-    marquee,
+    closeContextMenu: editor.closeContextMenu,
+    contextMenu: editor.contextMenu,
+    guides: editor.guides,
+    marquee: editor.marquee,
     openContextMenu,
     startMarquee,
     startMove,
