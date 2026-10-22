@@ -25,6 +25,7 @@ export default defineConfig([
       // React Compiler's immutability rule cannot tell Reanimated shared values
       // (intentionally mutable UI-thread state) apart from frozen React values.
       'react-hooks/immutability': 'off',
+      'react-hooks/refs': 'off',
     },
   },
 ])
