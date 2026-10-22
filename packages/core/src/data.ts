@@ -1,3 +1,4 @@
+import { createId } from './id';
 import type {
   CanvasElement,
   CanvasElementContent,
@@ -131,7 +132,7 @@ export function createElement(kind: ElementKind, position?: { x: number; y: numb
   const frame = defaults.frame ?? { x: 120, y: 120, width: 260, height: 160 };
   const nextFrame = { ...frame, ...position };
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     kind,
     name: defaults.name ?? kind,
     frame: nextFrame,
@@ -144,7 +145,7 @@ export function createElement(kind: ElementKind, position?: { x: number; y: numb
 
 export function createEmptyProject(): CanvasProject {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: 'Untitled playground',
     framework: 'react',
     layoutMode: 'free',
