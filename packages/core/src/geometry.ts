@@ -9,19 +9,18 @@ import type {
 
 export const minFrameSize = 24;
 
+// NOTE: the frame-math helpers below carry the `'worklet'` directive so they can
+// be called synchronously from Reanimated gesture worklets on the UI runtime
+// ("Tried to synchronously call a Remote Function" otherwise). The directive is
+// an inert string statement on the web — no effect outside React Native.
+
 export function clamp(value: number, min: number, max: number) {
+  'worklet';
   return Math.min(Math.max(value, min), max);
 }
 
-export function toCanvasPoint(event: { clientX: number; clientY: number }, canvas: HTMLElement, scale: number) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: Math.round((event.clientX - rect.left) / scale),
-    y: Math.round((event.clientY - rect.top) / scale),
-  };
-}
-
 export function clampFrameToCanvas(frame: CanvasElementFrame, canvas: { width: number; height: number }): CanvasElementFrame {
+  'worklet';
   const width = clamp(frame.width, minFrameSize, canvas.width);
   const height = clamp(frame.height, minFrameSize, canvas.height);
   return {
@@ -37,6 +36,7 @@ export function moveFrame(
   delta: { x: number; y: number },
   canvas: { width: number; height: number },
 ): CanvasElementFrame {
+  'worklet';
   return clampFrameToCanvas({ ...frame, x: frame.x + delta.x, y: frame.y + delta.y }, canvas);
 }
 
@@ -46,6 +46,7 @@ export function resizeFrame(
   delta: { x: number; y: number },
   canvas: { width: number; height: number },
 ): CanvasElementFrame {
+  'worklet';
   const next = { ...frame };
 
   if (handle.includes('e')) next.width = frame.width + delta.x;
@@ -73,6 +74,7 @@ export function resizeFrame(
 }
 
 export function normalizeSelectionRect(start: { x: number; y: number }, end: { x: number; y: number }): SelectionRect {
+  'worklet';
   return {
     x: Math.min(start.x, end.x),
     y: Math.min(start.y, end.y),
@@ -124,6 +126,7 @@ export function alignmentTargets(
 }
 
 function snapAxis(start: number, size: number, targets: number[]) {
+  'worklet';
   const edges = [start, start + size / 2, start + size];
   let best: { delta: number; at: number; distance: number } | null = null;
   for (const edge of edges) {
@@ -141,6 +144,7 @@ export function snapFrame(
   frame: CanvasElementFrame,
   targets: SnapTargets,
 ): { frame: CanvasElementFrame; guides: SnapGuides } {
+  'worklet';
   const horizontal = snapAxis(frame.x, frame.width, targets.x);
   const vertical = snapAxis(frame.y, frame.height, targets.y);
   return {
