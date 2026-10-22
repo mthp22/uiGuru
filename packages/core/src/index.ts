@@ -19,3 +19,6 @@ export * from './useHistory';
 export * from './id';
 export * from './editor';
 export * from './inspector';
+export * from './storage';
+export * from './persistence';
+export * from './api';
