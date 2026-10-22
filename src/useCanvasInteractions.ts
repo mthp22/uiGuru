@@ -7,23 +7,24 @@ import {
   type RefObject,
 } from 'react';
 import {
+  alignmentTargets,
+  clampFrameToCanvas,
   duplicateElement,
   moveElement,
+  moveFrame,
+  normalizeSelectionRect,
   removeElement,
   resetElementSize,
   resizeElement,
   setElementFrame,
-} from './canvasCommands';
-import {
-  alignmentTargets,
-  clampFrameToCanvas,
-  moveFrame,
-  normalizeSelectionRect,
   snapFrame,
-  toCanvasPoint,
   topmostIntersecting,
-} from './geometry';
-import type { CanvasProject, ResizeHandle, SelectionRect, SnapGuides } from './types';
+  type CanvasProject,
+  type ResizeHandle,
+  type SelectionRect,
+  type SnapGuides,
+} from '@uiguru/core';
+import { toCanvasPoint } from './toCanvasPoint';
 
 type InteractionMode =
   | { type: 'idle' }
