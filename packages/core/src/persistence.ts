@@ -25,6 +25,8 @@ export interface ProjectPersistence {
 export interface UseProjectPersistenceOptions {
   /** Open this project on mount instead of the stored "current" one. */
   projectId?: string | null;
+  /** Set false to skip the mount-time restore (e.g. the route carries a preset). */
+  restore?: boolean;
   debounceMs?: number;
 }
 
@@ -33,7 +35,7 @@ export function useProjectPersistence(
   storage: ProjectStorage,
   options: UseProjectPersistenceOptions = {},
 ): ProjectPersistence {
-  const { projectId, debounceMs = 800 } = options;
+  const { projectId, restore = true, debounceMs = 800 } = options;
   const [status, setStatus] = useState<ProjectPersistence['status']>('loading');
   const [projects, setProjects] = useState<CanvasProject[]>([]);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -66,7 +68,9 @@ export function useProjectPersistence(
     [storage],
   );
 
-  // Restore the requested (or last-opened) project once on mount.
+  // Restore the requested (or last-opened) project once on mount. When the
+  // caller opts out (a route preset is already loaded in the engine), only
+  // the project list is hydrated so autosave guards work from the start.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -75,10 +79,12 @@ export function useProjectPersistence(
         if (cancelled) return;
         knownIds.current = new Set(items.map((project) => project.id));
         setProjects(items);
-        const targetId = projectId ?? (await storage.getCurrentId());
-        if (cancelled) return;
-        const target = targetId ? (items.find((project) => project.id === targetId) ?? null) : null;
-        if (target) loadProject(target, { selectFirst: false });
+        if (restore) {
+          const targetId = projectId ?? (await storage.getCurrentId());
+          if (cancelled) return;
+          const target = targetId ? (items.find((project) => project.id === targetId) ?? null) : null;
+          if (target) loadProject(target, { selectFirst: false });
+        }
         loaded.current = true;
         setStatus('ready');
       } catch {
@@ -88,7 +94,7 @@ export function useProjectPersistence(
     return () => {
       cancelled = true;
     };
-  }, [loadProject, projectId, storage]);
+  }, [loadProject, projectId, restore, storage]);
 
   // Debounced autosave of engine project changes (commit and stage both flow
   // through the history present, so one seam covers every mutation).

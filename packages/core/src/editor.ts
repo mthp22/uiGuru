@@ -8,7 +8,7 @@
  * `stage`/`endInteraction` (gestures), so undo/redo and — later — API sync
  * have a single seam to attach to.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   bringElementForward,
   duplicateElement,
@@ -134,6 +134,24 @@ export interface EditorApi {
   /** Project-level transitions (presets, saved list, empty playground). */
   loadProject: (project: CanvasProject, options?: { selectFirst?: boolean }) => void;
   loadEmpty: () => void;
+
+  /** Stable gesture-intent bundle for memoized per-element renderers. */
+  elementActions: EditorElementActions;
+}
+
+/**
+ * The gesture intents `ElementView`-style per-element renderers need, bundled
+ * into one referentially stable object. The full `EditorApi` is recreated on
+ * every render (it carries project/selection state), which defeats `memo` on
+ * per-element components; this bundle only depends on stable callbacks, so
+ * unchanged elements skip re-renders during drags of other elements.
+ */
+export interface EditorElementActions {
+  setSelectedId: (elementId: string | null) => void;
+  startMove: (elementId: string, point: EditorPoint) => void;
+  updateInteraction: (point: EditorPoint) => void;
+  endInteraction: () => void;
+  openContextMenu: (elementId: string, position: EditorPoint) => void;
 }
 
 export interface UseEditorOptions {
@@ -405,6 +423,14 @@ export function useEditor(options: UseEditorOptions = {}): EditorApi {
     interaction.type === 'marquee' ? normalizeSelectionRect(interaction.start, interaction.current) : null;
   const selected = project.elements.find((element) => element.id === selectedId) ?? null;
 
+  // Every dep below is itself a stable `useCallback`, so this object keeps a
+  // single identity across renders — the key that lets memoized element
+  // views skip re-renders while another element is being dragged.
+  const elementActions = useMemo<EditorElementActions>(
+    () => ({ setSelectedId, startMove, updateInteraction, endInteraction, openContextMenu }),
+    [setSelectedId, startMove, updateInteraction, endInteraction, openContextMenu],
+  );
+
   return {
     project,
     selectedId,
@@ -439,5 +465,6 @@ export function useEditor(options: UseEditorOptions = {}): EditorApi {
     updateProject,
     loadProject,
     loadEmpty,
+    elementActions,
   };
 }
