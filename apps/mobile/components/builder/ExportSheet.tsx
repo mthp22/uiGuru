@@ -10,6 +10,7 @@ import {
   type Framework,
   type ReactFlavor,
 } from '@uiguru/core';
+import { useTheme } from '../../lib/theme';
 import Sheet from './Sheet';
 import { ChipRow } from './controls';
 
@@ -29,6 +30,7 @@ export default function ExportSheet({
   const [framework, setFramework] = useState<Framework>(frameworks[0].id);
   const [flavor, setFlavor] = useState<ReactFlavor>('tsx');
   const [copied, setCopied] = useState(false);
+  const theme = useTheme();
 
   const code = useMemo(
     () => exportProject(editor.project, framework, flavor),
@@ -68,7 +70,7 @@ export default function ExportSheet({
         />
       ) : null}
 
-      <Text numberOfLines={1} style={styles.fileName}>
+      <Text numberOfLines={1} style={[styles.fileName, { color: theme.textSecondary }]}>
         {fileName}
       </Text>
       <ScrollView style={styles.code} horizontal>
@@ -80,8 +82,13 @@ export default function ExportSheet({
       </ScrollView>
 
       <View style={styles.actions}>
-        <Pressable style={styles.action} onPress={() => void copy()}>
-          <Text style={styles.actionLabel}>{copied ? 'Copied ✓' : 'Copy'}</Text>
+        <Pressable
+          style={[styles.action, { backgroundColor: theme.surfaceAlt }]}
+          onPress={() => void copy()}
+        >
+          <Text style={[styles.actionLabel, { color: theme.textSecondary }]}>
+            {copied ? 'Copied ✓' : 'Copy'}
+          </Text>
         </Pressable>
         <Pressable style={styles.primaryAction} onPress={() => void share()}>
           <Text style={styles.primaryLabel}>Share…</Text>

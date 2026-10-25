@@ -3,56 +3,59 @@ import { Image, StyleSheet, Text, View, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import type { CanvasElement, CanvasElementStyle, EditorApi } from '@uiguru/core';
+import type { CanvasElement, CanvasElementStyle, EditorElementActions } from '@uiguru/core';
 
 type Props = {
   element: CanvasElement;
   scale: number;
-  editor: EditorApi;
+  actions: EditorElementActions;
 };
 
 /**
  * Native rendering of one canvas element plus its touch gestures.
  * Gestures map to shared engine intents: tap = select, pan = move,
  * long-press = context menu. Frame math lives in @uiguru/core.
+ *
+ * Receives the engine's stable `elementActions` bundle (not the full editor
+ * object) so `memo` holds: only the element being dragged re-renders.
  */
-function ElementView({ element, scale, editor }: Props) {
+function ElementView({ element, scale, actions }: Props) {
   const startFrameRef = useRef(element.frame);
 
   const handleSelect = useCallback(() => {
     Haptics.selectionAsync().catch(() => {});
-    editor.setSelectedId(element.id);
-  }, [editor, element.id]);
+    actions.setSelectedId(element.id);
+  }, [actions, element.id]);
 
   const handleMoveStart = useCallback(() => {
     const frame = element.frame;
     startFrameRef.current = frame;
-    editor.startMove(element.id, { x: frame.x, y: frame.y });
-  }, [editor, element.frame, element.id]);
+    actions.startMove(element.id, { x: frame.x, y: frame.y });
+  }, [actions, element.frame, element.id]);
 
   const handleMoveChange = useCallback(
     (translationX: number, translationY: number) => {
       const frame = startFrameRef.current;
-      editor.updateInteraction({
+      actions.updateInteraction({
         x: frame.x + translationX / scale,
         y: frame.y + translationY / scale,
       });
     },
-    [editor, scale],
+    [actions, scale],
   );
 
   const handleGestureEnd = useCallback(() => {
-    editor.endInteraction();
-  }, [editor]);
+    actions.endInteraction();
+  }, [actions]);
 
   const handleLongPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const frame = element.frame;
-    editor.openContextMenu(element.id, {
+    actions.openContextMenu(element.id, {
       x: Math.max(0, Math.min(frame.x, 980)),
       y: Math.max(0, frame.y + frame.height + 6),
     });
-  }, [editor, element.frame, element.id]);
+  }, [actions, element.frame, element.id]);
 
   const move = Gesture.Pan()
     .enabled(!element.locked)

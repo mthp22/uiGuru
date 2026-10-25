@@ -15,6 +15,7 @@ import {
 } from '@uiguru/core';
 import Sheet from './Sheet';
 import { ChipRow, ColorRow, StepperRow, TextRow } from './controls';
+import { useTheme } from '../../lib/theme';
 
 const tabs = ['Content', 'Type', 'Space', 'Position', 'Look'] as const;
 type Tab = (typeof tabs)[number];
@@ -34,6 +35,7 @@ export default function InspectorSheet({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('Content');
+  const theme = useTheme();
   const element = editor.selected;
   if (!element) return null;
 
@@ -54,10 +56,22 @@ export default function InspectorSheet({
         {tabs.map((item) => (
           <Pressable
             key={item}
-            style={[styles.tab, tab === item && styles.tabActive]}
+            style={[
+              styles.tab,
+              { backgroundColor: theme.surfaceAlt },
+              tab === item && { backgroundColor: theme.accent },
+            ]}
             onPress={() => setTab(item)}
           >
-            <Text style={[styles.tabLabel, tab === item && styles.tabLabelActive]}>{item}</Text>
+            <Text
+              style={[
+                styles.tabLabel,
+                { color: theme.textSecondary },
+                tab === item && { color: theme.accentText },
+              ]}
+            >
+              {item}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -69,7 +83,7 @@ export default function InspectorSheet({
 
         {tab === 'Type' ? (
           element.kind === 'image' ? (
-            <Text style={styles.note}>Images have no typography.</Text>
+            <Text style={[styles.note, { color: theme.textMuted }]}>Images have no typography.</Text>
           ) : (
             <>
               <ChipRow
@@ -166,10 +180,10 @@ export default function InspectorSheet({
               </View>
             </View>
             <Pressable
-              style={styles.action}
+              style={[styles.action, { backgroundColor: theme.surfaceAlt }]}
               onPress={() => editor.runCommand('reset-size', element.id)}
             >
-              <Text style={styles.actionLabel}>Reset size</Text>
+              <Text style={[styles.actionLabel, { color: theme.textSecondary }]}>Reset size</Text>
             </Pressable>
           </>
         ) : null}
@@ -219,19 +233,27 @@ export default function InspectorSheet({
             />
             <View style={styles.commandRow}>
               <Pressable
-                style={styles.action}
+                style={[styles.action, { backgroundColor: theme.surfaceAlt }]}
                 onPress={() => editor.runCommand('toggle-lock', element.id)}
               >
-                <Text style={styles.actionLabel}>{element.locked ? 'Unlock' : 'Lock'}</Text>
+                <Text style={[styles.actionLabel, { color: theme.textSecondary }]}>
+                  {element.locked ? 'Unlock' : 'Lock'}
+                </Text>
               </Pressable>
               <Pressable
-                style={styles.action}
+                style={[styles.action, { backgroundColor: theme.surfaceAlt }]}
                 onPress={() => editor.runCommand('duplicate', element.id)}
               >
-                <Text style={styles.actionLabel}>Duplicate</Text>
+                <Text style={[styles.actionLabel, { color: theme.textSecondary }]}>Duplicate</Text>
               </Pressable>
               <Pressable
-                style={styles.dangerAction}
+                style={[
+                  styles.dangerAction,
+                  {
+                    backgroundColor:
+                      theme.scheme === 'dark' ? 'rgba(220, 38, 38, 0.18)' : '#fee2e2',
+                  },
+                ]}
                 onPress={() => {
                   editor.runCommand('remove', element.id);
                   onClose();
@@ -300,6 +322,7 @@ export type InspectorProject = CanvasProject;
 export type InspectorFont = FontFamily;
 export type InspectorAlign = TextAlign;
 
+// Layout-only statics; colors come from `useTheme()` inline overrides.
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tab: {
@@ -307,30 +330,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderRadius: 9,
-    backgroundColor: '#f1f5f9',
   },
-  tabActive: { backgroundColor: '#2563eb' },
-  tabLabel: { fontSize: 12, fontWeight: '700', color: '#64748b' },
-  tabLabelActive: { color: '#ffffff' },
+  tabLabel: { fontSize: 12, fontWeight: '700' },
   scroller: { maxHeight: 420 },
-  note: { fontSize: 13, color: '#94a3b8', paddingVertical: 8 },
+  note: { fontSize: 13, paddingVertical: 8 },
   splitRow: { flexDirection: 'row', gap: 12 },
   splitCell: { flex: 1 },
   action: {
     alignItems: 'center',
     paddingVertical: 11,
     borderRadius: 10,
-    backgroundColor: '#f1f5f9',
     marginBottom: 12,
   },
-  actionLabel: { fontSize: 13, fontWeight: '600', color: '#334155' },
+  actionLabel: { fontSize: 13, fontWeight: '600' },
   commandRow: { flexDirection: 'row', gap: 8 },
   dangerAction: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 11,
     borderRadius: 10,
-    backgroundColor: '#fee2e2',
     marginBottom: 12,
   },
   dangerLabel: { fontSize: 13, fontWeight: '700', color: '#dc2626' },

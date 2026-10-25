@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ElementRef } from 'react
 import { ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { previewWidths, type EditorApi, type ResizeHandle } from '@uiguru/core';
+import { useTheme } from '../../lib/theme';
 import ContextMenu from './ContextMenu';
 import ElementView from './ElementView';
 
@@ -17,18 +18,22 @@ type Props = {
  * canvas deltas before calling engine intents.
  */
 export default function BuilderViewport({ editor, marqueeMode }: Props) {
-  const { project, zoom, previewSize, guides, marquee } = editor;
+  const { project, zoom, setZoom, previewSize, guides, marquee } = editor;
   const [viewportWidth, setViewportWidth] = useState(0);
+  const theme = useTheme();
 
   const viewportRef = useRef<ElementRef<typeof View>>(null);
   const viewportOriginRef = useRef({ x: 0, y: 0 });
   const scrollOffsetRef = useRef({ x: 0, y: 0 });
   const scaleRef = useRef(1);
+  const zoomRef = useRef(1);
+  const startZoomRef = useRef(1);
 
   const fitScale = viewportWidth > 0 ? viewportWidth / previewWidths[previewSize] : 0;
   const scale = fitScale * zoom;
   useEffect(() => {
     scaleRef.current = scale;
+    zoomRef.current = zoom;
   });
 
   const measureViewport = useCallback(() => {
@@ -92,6 +97,25 @@ export default function BuilderViewport({ editor, marqueeMode }: Props) {
   const bgTap = Gesture.Tap().maxDuration(250).onEnd(() => runOnJS(handleBgTap)());
   const bgGesture = Gesture.Race(bgPan, bgTap);
 
+  // Pinch-to-zoom over the whole viewport. `setZoom` rounds to 0.1 steps and
+  // clamps, so rapid gesture events collapse into a handful of state commits;
+  // the start zoom is read from a ref mirror so the gesture config itself
+  // stays stable across those re-renders.
+  const handlePinchStart = useCallback(() => {
+    startZoomRef.current = zoomRef.current;
+  }, []);
+
+  const handlePinchChange = useCallback(
+    (pinchScale: number) => {
+      setZoom(startZoomRef.current * pinchScale);
+    },
+    [setZoom],
+  );
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => runOnJS(handlePinchStart)())
+    .onChange((event) => runOnJS(handlePinchChange)(event.scale));
+
   const canvasWidth = project.canvas.width;
   const canvasHeight = project.canvas.height;
   const selected = editor.selected;
@@ -102,8 +126,9 @@ export default function BuilderViewport({ editor, marqueeMode }: Props) {
       ref={viewportRef}
       collapsable={false}
       onLayout={handleViewportLayout}
-      style={styles.root}
+      style={[styles.root, { backgroundColor: theme.canvasBg }]}
     >
+      <GestureDetector gesture={pinch}>
       <ScrollView
         contentContainerStyle={sized ? { width: canvasWidth * scale, height: canvasHeight * scale } : styles.emptyContent}
         scrollEnabled={!marqueeMode}
@@ -135,18 +160,23 @@ export default function BuilderViewport({ editor, marqueeMode }: Props) {
 
               {project.elements.length === 0 ? (
                 <View pointerEvents="none" style={styles.empty}>
-                  <View style={styles.emptyIcon}>
-                    <Text style={styles.emptyIconLabel}>＋</Text>
+                  <View style={[styles.emptyIcon, { backgroundColor: theme.accentSoft }]}>
+                    <Text style={[styles.emptyIconLabel, { color: theme.accent }]}>＋</Text>
                   </View>
-                  <Text style={styles.emptyTitle}>Start with a blank canvas</Text>
-                  <Text style={styles.emptyBody}>
+                  <Text style={[styles.emptyTitle, { color: theme.text }]}>Start with a blank canvas</Text>
+                  <Text style={[styles.emptyBody, { color: theme.textMuted }]}>
                     Tap Insert to add blocks, or start a component from the palette.
                   </Text>
                 </View>
               ) : null}
 
               {project.elements.map((element) => (
-                <ElementView editor={editor} element={element} key={element.id} scale={scale} />
+                <ElementView
+                  actions={editor.elementActions}
+                  element={element}
+                  key={element.id}
+                  scale={scale}
+                />
               ))}
 
               {marquee ? (
@@ -175,6 +205,7 @@ export default function BuilderViewport({ editor, marqueeMode }: Props) {
           </View>
         ) : null}
       </ScrollView>
+      </GestureDetector>
     </View>
   );
 }

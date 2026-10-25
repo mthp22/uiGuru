@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { componentPalette, elementPalette, type EditorApi } from '@uiguru/core';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../../lib/theme';
 import Sheet from './Sheet';
 
 const kindIcons: Record<string, string> = {
@@ -47,38 +48,39 @@ export default function PaletteSheet({
     editor.insertComponent(id);
     onClose();
   };
+  const theme = useTheme();
 
   return (
     <Sheet onClose={onClose} title="Insert" visible={visible}>
       <ScrollView style={styles.scroller}>
-        <Text style={styles.sectionLabel}>Blocks</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>Blocks</Text>
         <View style={styles.grid}>
           {elementPalette.map((item) => (
             <Pressable
               key={item.kind}
-              style={styles.card}
+              style={[styles.card, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
               onPress={() => insertKind(item.kind)}
             >
               <Text style={styles.icon}>{kindIcons[item.kind]}</Text>
-              <Text style={styles.cardLabel}>{item.label}</Text>
-              <Text numberOfLines={2} style={styles.cardHint}>
+              <Text style={[styles.cardLabel, { color: theme.text }]}>{item.label}</Text>
+              <Text numberOfLines={2} style={[styles.cardHint, { color: theme.textMuted }]}>
                 {item.description}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>Components</Text>
+        <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>Components</Text>
         <View style={styles.grid}>
           {componentPalette.map((item) => (
             <Pressable
               key={item.id}
-              style={styles.card}
+              style={[styles.card, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
               onPress={() => insertComponent(item.id)}
             >
               <Text style={styles.icon}>{componentIcons[item.id]}</Text>
-              <Text style={styles.cardLabel}>{item.label}</Text>
-              <Text numberOfLines={2} style={styles.cardHint}>
+              <Text style={[styles.cardLabel, { color: theme.text }]}>{item.label}</Text>
+              <Text numberOfLines={2} style={[styles.cardHint, { color: theme.textMuted }]}>
                 {item.description}
               </Text>
             </Pressable>
@@ -89,12 +91,12 @@ export default function PaletteSheet({
   );
 }
 
+// Layout-only statics; colors come from `useTheme()` inline overrides.
 const styles = StyleSheet.create({
   scroller: { maxHeight: 460 },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#94a3b8',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 4,
@@ -103,15 +105,13 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   card: {
     width: '47%',
-    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 12,
     gap: 2,
   },
   pressed: { opacity: 0.7 },
   icon: { fontSize: 18, marginBottom: 2 },
-  cardLabel: { fontSize: 14, fontWeight: '700', color: '#172033' },
-  cardHint: { fontSize: 11, color: '#94a3b8', lineHeight: 15 },
+  cardLabel: { fontSize: 14, fontWeight: '700' },
+  cardHint: { fontSize: 11, lineHeight: 15 },
 });

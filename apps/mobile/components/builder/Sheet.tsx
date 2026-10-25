@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../../lib/theme';
 
 /**
  * Bottom sheet built on RN Modal — no third-party dependency. Backdrop tap
@@ -16,16 +17,17 @@ export default function Sheet({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const theme = useTheme();
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
       <Pressable accessibilityLabel="Close sheet" style={styles.backdrop} onPress={onClose} />
-      <View style={styles.sheet}>
+      <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
         <View style={styles.header}>
-          <View style={styles.grabber} />
+          <View style={[styles.grabber, { backgroundColor: theme.textMuted, opacity: 0.5 }]} />
           <View style={styles.headerRow}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
             <Pressable accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeLabel}>Done</Text>
+              <Text style={[styles.closeLabel, { color: theme.accent }]}>Done</Text>
             </Pressable>
           </View>
         </View>
@@ -39,7 +41,6 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)' },
   sheet: {
     maxHeight: '72%',
-    backgroundColor: '#ffffff',
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     overflow: 'hidden',
@@ -50,13 +51,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#cbd5e1',
     marginTop: 8,
     marginBottom: 8,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 17, fontWeight: '700', color: '#0f172a' },
+  title: { fontSize: 17, fontWeight: '700' },
   closeButton: { paddingHorizontal: 8, paddingVertical: 4 },
-  closeLabel: { fontSize: 15, fontWeight: '600', color: '#2563eb' },
+  closeLabel: { fontSize: 15, fontWeight: '600' },
   body: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
 });
