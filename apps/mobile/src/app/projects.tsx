@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createProjectStorage, type CanvasProject } from '@uiguru/core';
+import { useTheme } from '../../lib/theme';
 
 /**
  * Saved-projects browser backed by the shared local-first storage (AsyncStorage
@@ -14,6 +15,7 @@ import { createProjectStorage, type CanvasProject } from '@uiguru/core';
 export default function ProjectsScreen() {
   const storage = useMemo(() => createProjectStorage(AsyncStorage), []);
   const [projects, setProjects] = useState<CanvasProject[] | null>(null);
+  const theme = useTheme();
 
   const reload = useCallback(async () => {
     setProjects(await storage.list());
@@ -61,41 +63,50 @@ export default function ProjectsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.topBar}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]}>
+      <View
+        style={[
+          styles.topBar,
+          { backgroundColor: theme.surface, borderBottomColor: theme.border },
+        ]}
+      >
         <Pressable accessibilityLabel="Back" style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backLabel}>‹</Text>
+          <Text style={[styles.backLabel, { color: theme.text }]}>‹</Text>
         </Pressable>
-        <Text style={styles.title}>My projects</Text>
+        <Text style={[styles.title, { color: theme.text }]}>My projects</Text>
         <View style={styles.backButton} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {projects && projects.length === 0 ? (
-          <Text style={styles.empty}>No saved projects yet — build something!</Text>
+          <Text style={[styles.empty, { color: theme.textMuted }]}>
+            No saved projects yet — build something!
+          </Text>
         ) : null}
-        {projects === null ? <Text style={styles.empty}>Loading…</Text> : null}
+        {projects === null ? <Text style={[styles.empty, { color: theme.textMuted }]}>Loading…</Text> : null}
 
         {(projects ?? []).map((project) => (
           <Pressable
             key={project.id}
-            style={styles.row}
+            style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={() => open(project.id)}
             onLongPress={() => menu(project)}
           >
             <View style={styles.rowBody}>
-              <Text numberOfLines={1} style={styles.rowTitle}>
+              <Text numberOfLines={1} style={[styles.rowTitle, { color: theme.text }]}>
                 {project.name}
               </Text>
-              <Text style={styles.rowMeta}>
+              <Text style={[styles.rowMeta, { color: theme.textMuted }]}>
                 {project.elements.length} blocks · {formatDate(project.updatedAt)}
               </Text>
             </View>
-            <Text style={styles.rowArrow}>›</Text>
+            <Text style={[styles.rowArrow, { color: theme.textMuted }]}>›</Text>
           </Pressable>
         ))}
 
-        <Text style={styles.hint}>Tip: long-press a project to rename or delete it.</Text>
+        <Text style={[styles.hint, { color: theme.textMuted }]}>
+          Tip: long-press a project to rename or delete it.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -107,33 +118,30 @@ function formatDate(value?: string): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+// Layout-only statics; colors come from `useTheme()` inline overrides.
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
+  safe: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
   },
   backButton: { width: 48, height: 44, alignItems: 'center', justifyContent: 'center' },
-  backLabel: { fontSize: 26, color: '#334155', lineHeight: 28 },
-  title: { flex: 1, fontSize: 17, fontWeight: '700', color: '#0f172a' },
+  backLabel: { fontSize: 26, lineHeight: 28 },
+  title: { flex: 1, fontSize: 17, fontWeight: '700' },
   content: { padding: 16, gap: 10 },
-  empty: { fontSize: 14, color: '#94a3b8', textAlign: 'center', marginTop: 40 },
+  empty: { fontSize: 14, textAlign: 'center', marginTop: 40 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
   rowBody: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '700', color: '#172033' },
-  rowMeta: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  rowArrow: { fontSize: 22, color: '#cbd5e1', marginLeft: 8 },
-  hint: { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 16 },
+  rowTitle: { fontSize: 15, fontWeight: '700' },
+  rowMeta: { fontSize: 12, marginTop: 2 },
+  rowArrow: { fontSize: 22, marginLeft: 8 },
+  hint: { fontSize: 11, textAlign: 'center', marginTop: 16 },
 });
